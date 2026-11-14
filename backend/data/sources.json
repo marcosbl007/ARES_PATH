@@ -1,0 +1,64 @@
+{
+  "sources": {
+    "DTEEC_002387_1985_003798_1985_A01": {
+      "product_id": "DTEEC_002387_1985_003798_1985_A01",
+      "dataset_id": "MRO-M-HIRISE-5-DTM-V1.0",
+      "version": "1.0",
+      "mission": "Mars Reconnaissance Orbiter",
+      "instrument": "HiRISE",
+      "producer": "University of Arizona",
+      "title": "Depositional fan in Jezero Crater",
+      "official_page": "https://www.uahirise.org/dtm/PSP_002387_1985",
+      "download_url": "https://www.uahirise.org/PDS/DTM/PSP/ORB_002300_002399/PSP_002387_1985_PSP_003798_1985/DTEEC_002387_1985_003798_1985_A01.IMG",
+      "registry_reference": "https://registry.opendata.aws/nasa-usgs-mars-hirise-dtms/",
+      "accessed_on": "2026-11-14",
+      "authentication": false,
+      "format": "PDS3 IMG float32",
+      "size_bytes": 320045704,
+      "vertical_units": "m",
+      "vertical_datum": "Mars 2000 equipotential surface (Smith et al. 2001), per PDS IMAGE NOTE",
+      "horizontal_units": "m",
+      "nominal_resolution_m": 1.0,
+      "pds_map_scale_m": 1.0096476466229,
+      "shape": [
+        11538,
+        6934
+      ],
+      "geographic_bounds_planetocentric_east": [
+        77.34394372,
+        18.392143429723,
+        77.466254,
+        18.588734996352
+      ],
+      "projection": "EQUIRECTANGULAR",
+      "projection_center_latitude_deg": 15.0,
+      "projection_center_longitude_deg": 77.41,
+      "sphere_radius_m": 3394839.8133163,
+      "attribution": "NASA/JPL-Caltech/University of Arizona",
+      "usage_policy": "https://www.uahirise.org/usage/"
+    },
+    "PSP_002387_1985_RED_C_01_ORTHO": {
+      "product_id": "PSP_002387_1985_RED_C_01_ORTHO",
+      "version": "1.0",
+      "mission": "Mars Reconnaissance Orbiter",
+      "instrument": "HiRISE",
+      "producer": "University of Arizona",
+      "official_page": "https://www.uahirise.org/dtm/PSP_002387_1985",
+      "download_url": "https://www.uahirise.org/PDS/DTM/PSP/ORB_002300_002399/PSP_002387_1985_PSP_003798_1985/PSP_002387_1985_RED_C_01_ORTHO.JP2",
+      "label_url": "https://www.uahirise.org/PDS/DTM/PSP/ORB_002300_002399/PSP_002387_1985_PSP_003798_1985/PSP_002387_1985_RED_C_01_ORTHO.LBL",
+      "accessed_on": "2026-11-14",
+      "authentication": false,
+      "size_bytes": 30941086,
+      "kind": "orthoimage",
+      "filter": "RED",
+      "units": "DN",
+      "shape": [
+        11538,
+        6934
+      ],
+      "pds_map_scale_m": 1.0096476466229,
+      "associated_dtm": "DTEEC_002387_1985_003798_1985_A01",
+      "attribution": "NASA/JPL-Caltech/University of Arizona"
+    }
+  }
+}
