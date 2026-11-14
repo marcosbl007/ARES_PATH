@@ -1,5 +1,4 @@
 import {
-  Activity,
   BarChart3,
   Cloud,
   CloudDownload,
@@ -7,6 +6,7 @@ import {
   Map as MapIcon,
   SlidersHorizontal,
 } from "lucide-react";
+import Image from "next/image";
 
 import { StatusDot } from "@/components/atoms/status-dot";
 import { NavItem } from "@/components/molecules/nav-item";
@@ -23,10 +23,14 @@ export function AppTopbar() {
     <header className="topbar">
       <div className="topbar__identity">
         <div className="brand-lockup">
-          <span className="brand-lockup__icon">
-            <Activity size={15} aria-hidden="true" />
-          </span>
-          <span className="brand-lockup__name">ARES PATH</span>
+          <Image
+            className="brand-lockup__logo"
+            src="/brand/ares-path-logo-rectangular.png"
+            alt="ARES PATH"
+            width={138}
+            height={36}
+            priority
+          />
           <span className="brand-lockup__version">FOUNDATION</span>
         </div>
         <div className="mission-chip">
