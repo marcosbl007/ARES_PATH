@@ -752,19 +752,33 @@ Recomendación de demo: panel de misión izquierda, mapa central, comparación d
 |---|---|---|
 | Desafío | `Interplanetary Survival Guide: Martian Map` confirmado | Solo si el equipo cambia de reto |
 | Nombre de solución | `ARES PATH` acordado | Si cambia nombre público |
-| Área piloto | Jezero preferido, pendiente de DTM concreto | Tras verificar raster y cobertura |
+| Área piloto | Recorte `jezero_fan_256` del abanico deposicional de Jezero; DTM descargado y procesado | Tras validar alineación con ortoimagen y puntos de control |
 | Plan B geográfico | Gale/Mount Sharp u otra AOI con DTM validado | Si Jezero no es viable |
 | Backend | Python / FastAPI / NumPy / Rasterio | Al fijar versiones |
 | Algoritmo base | A* en rejilla de 8 vecinos | Si se prueba otra opción |
 | Criterios | Distancia y penalización de pendiente | Tras tests científicos |
-| Datos NASA concretos | Pendientes: IDs/URL/CRS de P1 | En cuanto se descarguen |
+| Datos NASA concretos | HiRISE/MRO `DTEEC_002387_1985_003798_1985_A01`, PDS original público; CRS y unidades conservados | Ante otro producto o recorte; detalles en `docs/nasa-data-sources.md` |
 | Frontend | React/Next.js previsto, no asignado en este plan | Al definir interfaz real |
 | Fuente de verdad | Guía oficial + NASA + AGENTS.md | Ante cambios oficiales |
 | P5 | Trabajo mínimo | Mantener mínimo |
 
 **Formato para nueva decisión:** fecha/hora, quiénes acordaron, qué cambia, motivo, contratos afectados, tests que cambian, enlace al PR. No cambiar comportamiento y documentarlo días después.
 
+### 2026-11-14 — Selección y validación del DTM por Persona 1
+
+Persona 1 autorizó la selección de datos NASA reales sin autenticación ni claves y el registro de esta actualización. Se seleccionó el DTM HiRISE/MRO `DTEEC_002387_1985_003798_1985_A01`, del abanico deposicional de Jezero, descargado desde PDS. Se generó `jezero_fan_256`, de 256 × 256 celdas, sin remuestreo ni reproyección. Se conserva el CRS marciano equirectangular original, con resolución de 1.0096476466229 m/píxel y elevaciones en metros sobre Mars 2000 Datum.
+
+Se mantiene el contrato `RegionData` de la sección 4.3, con índices internos `(fila, columna)` y máscara de validez. Validación: 15 pruebas unitarias aprobadas, lectura local del recorte real y consultas HTTP con router aislado (200 para los tres endpoints de datos y 404 para región inexistente). No se cambiaron contratos de otros módulos. La hora exacta no se registró y no se creó PR ni commit automáticamente.
+
+Pendientes: P4 debe registrar el router y coordinar dependencias; el equipo debe validar alineación con ortoimagen y puntos de control, y ejecutar la integración P1→P2→P3→P4. Procedencia, comandos reproducibles, evidencia y limitaciones en [NASA Data Processing](../docs/nasa-data-sources.md).
+
 ---
+
+### 2026-11-14 — Ortoimagen asociada al DTM de Jezero
+
+Persona 1 solicitó incorporar una ortoimagen compatible. Se descargó `PSP_002387_1985_RED_C_01_ORTHO` y su etiqueta PDS desde el directorio oficial del DTM. Se preparó un TIFF óptico 256 × 256 sobre la cuadrícula de `jezero_fan_256`, sin remuestrear ni modificar el DTM. Se mantiene `RegionData`; `/layers` puede anunciar la imagen como capa contextual, con `used_for_routing=false`.
+
+Se detectaron diferencias entre la georreferenciación incrustada del JP2 y la etiqueta PDS (parámetros del CRS y origen desplazado 1.5 píxeles). Se adoptó explícitamente la cuadrícula PDS compartida, interpretada con la convención de GDAL del IMG original, conservando los metadatos discrepantes para auditoría. Se verificaron tres posiciones de cuadrícula y se generó una comparación visual. Esto no constituye control geodésico independiente: el estado es `PDS grid verified; independent visual review pending`. Validación actual: 19 pruebas aprobadas y `/layers` HTTP 200 con ambas capas. P4 debe integrar el router y definir cómo servir la imagen; el equipo debe revisar rasgos y referencias independientes. Comandos y limitaciones en [NASA Data Processing](../docs/nasa-data-sources.md). Sin PR ni commit automático; hora exacta no registrada.
 
 ## 13. Mensaje de contexto que cualquier integrante debe poder explicar
 
