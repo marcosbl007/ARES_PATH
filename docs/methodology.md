@@ -29,3 +29,31 @@ La implementación prepara las operaciones sobre un `RegionData` validado, pero 
 ## Interfaz para rutas e integración
 
 `app.terrain.analyze_region(region, config)` recibe el `RegionData` de P1 y un `TerrainConfig` o diccionario con `max_slope_deg` y `slope_weight`. Devuelve `TerrainData` con `slope_deg`, `traversable` y `cost_multiplier` de la misma forma que `region.elevation_m`. P3 debe usar `traversable` como máscara obligatoria; el multiplicador es `NaN` donde la celda está bloqueada. La política de coste por paso del planificador debe seguir el contrato de A* de `AGENTS.md` y quedar acordada con P3 antes de integrar rutas. P4 puede llamar `get_terrain_statistics(region, config)` para obtener un resumen sin enviar el raster completo.
+
+## Comprobación con el recorte real de Jezero
+
+P1 seleccionó `jezero_fan_256`, asociado al producto HiRISE `DTEEC_002387_1985_003798_1985_A01`. Se descargó de nuevo el IMG indicado en `backend/data/sources.json` y se reprodujo el recorte de 256 × 256 celdas. Los SHA256 del IMG y del TIFF reconstruido coincidieron exactamente con los valores del sidecar `jezero_fan_256_elevation.json`. El TIFF es local y está excluido de Git; un nuevo checkout debe reproducirlo según `docs/nasa-data-sources.md`.
+
+Para una celda interior `(row=128, col=128)`, las elevaciones originales en metros son: izquierda `-2425.36181640625`, derecha `-2425.353271484375`, arriba `-2425.40966796875` y abajo `-2425.2978515625`. Con `pixel_size_x_m = pixel_size_y_m = 1.0096476466229`, la demostración del cálculo es:
+
+```text
+dz/dx = (z_derecha - z_izquierda) / (2 * pixel_size_x_m) = 0.00423163561247
+dz/dy = (z_abajo - z_arriba) / (2 * pixel_size_y_m) = 0.05537397458609
+pendiente = degrees(atan(hypot(dz/dx, dz/dy))) = 3.17868046266 grados
+```
+
+El resultado manual coincide con `calculate_slope(region)[128, 128]`. En todo el recorte, bajo los parámetros exploratorios predeterminados `max_slope_deg=20` y `slope_weight=2`, hay 65 536 celdas válidas y transitables según **este criterio del prototipo**; la pendiente calculada va de `0.0097966557°` a `17.3470597057°` y la media es `2.8937817499°`. El multiplicador de coste va de `1.0000004799` a `2.5046024022`. Estos números describen únicamente este recorte y esta fórmula; no identifican obstáculos menores que la resolución del DTM ni validan la seguridad de una caminata.
+
+Uso para P3/P4 desde `backend/`, una vez preparado el TIFF local:
+
+```python
+from app.nasa_data.repository import RegionRepository
+from app.terrain import analyze_region, get_terrain_statistics
+
+region = RegionRepository().get_region("jezero_fan_256")
+config = {"max_slope_deg": 20.0, "slope_weight": 2.0}
+terrain = analyze_region(region, config)
+summary = get_terrain_statistics(region, config)
+# P3 consume terrain.traversable y terrain.cost_multiplier junto con
+# region.pixel_size_x_m y region.pixel_size_y_m.
+```

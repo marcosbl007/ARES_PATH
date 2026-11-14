@@ -138,6 +138,30 @@ def test_summary_and_facade_share_the_same_configuration() -> None:
     assert analyze_region(sample, analyzer.config).config == analyzer.analyze(sample).config
 
 
+def test_person_one_region_data_contract_flows_into_terrain() -> None:
+    from affine import Affine
+
+    from app.nasa_data.schemas import RegionData
+
+    elevations = np.tile(np.arange(3, dtype=np.float64), (3, 1))
+    prepared = RegionData(
+        region_id="synthetic",
+        elevation_m=elevations,
+        valid_mask=np.ones((3, 3), dtype=bool),
+        transform=Affine(1, 0, 0, 0, -1, 0),
+        crs_wkt="MARS_SYNTHETIC_METRIC",
+        pixel_size_x_m=1.0,
+        pixel_size_y_m=1.0,
+        source_ids=("synthetic",),
+    )
+
+    terrain = analyze_region(prepared, {"max_slope_deg": 45.0, "slope_weight": 2.0})
+    assert terrain.slope_deg.shape == prepared.elevation_m.shape
+    assert terrain.traversable.all()
+    np.testing.assert_allclose(terrain.slope_deg, 45.0)
+    np.testing.assert_allclose(terrain.cost_multiplier, 3.0)
+
+
 @pytest.mark.parametrize(
     "config",
     [
