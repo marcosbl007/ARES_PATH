@@ -1,0 +1,26 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.2.0, pluggy-1.7.0 -- C:\Users\Vela\Desktop\ARES_PATH\backend\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Vela\Desktop\ARES_PATH\backend
+configfile: pyproject.toml
+plugins: anyio-4.16.0
+collecting ... collected 16 items
+
+tests/test_terrain.py::test_flat_terrain_has_zero_slope_and_unit_cost PASSED [  6%]
+tests/test_terrain.py::test_one_to_one_ramp_is_45_degrees_on_either_axis[0] PASSED [ 12%]
+tests/test_terrain.py::test_one_to_one_ramp_is_45_degrees_on_either_axis[1] PASSED [ 18%]
+tests/test_terrain.py::test_rectangular_pixels_use_the_correct_axis_spacing PASSED [ 25%]
+tests/test_terrain.py::test_nodata_blocks_cell_and_nearby_unsupported_slopes PASSED [ 31%]
+tests/test_terrain.py::test_slope_threshold_includes_equal_value_and_cost_is_configurable PASSED [ 37%]
+tests/test_terrain.py::test_elevation_profile_reports_physical_distance_and_relief PASSED [ 43%]
+tests/test_terrain.py::test_single_point_profile_and_invalid_paths PASSED [ 50%]
+tests/test_terrain.py::test_summary_and_facade_share_the_same_configuration PASSED [ 56%]
+tests/test_terrain.py::test_person_one_region_data_contract_flows_into_terrain PASSED [ 62%]
+tests/test_terrain.py::test_invalid_terrain_parameters_are_rejected[config0] PASSED [ 68%]
+tests/test_terrain.py::test_invalid_terrain_parameters_are_rejected[config1] PASSED [ 75%]
+tests/test_terrain.py::test_invalid_terrain_parameters_are_rejected[config2] PASSED [ 81%]
+tests/test_terrain.py::test_invalid_terrain_parameters_are_rejected[config3] PASSED [ 87%]
+tests/test_terrain.py::test_invalid_terrain_parameters_are_rejected[config4] PASSED [ 93%]
+tests/test_terrain.py::test_unknown_or_inconsistent_metric_inputs_are_rejected PASSED [100%]
+
+============================= 16 passed in 0.26s ==============================
