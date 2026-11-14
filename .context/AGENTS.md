@@ -90,6 +90,7 @@
 - Galería de imágenes originales Perseverance: https://mars.nasa.gov/mars2020/multimedia/raw-images/
 - Planetary Data System: https://pds.nasa.gov/
 - USGS Astrogeology: https://www.usgs.gov/centers/astrogeology-science-center
+- Brief de propuesta ARES PATH adjunto por el equipo: sugiere explorar productos MOLA/PDS y modelos de terreno HiRISE; como el propio documento aclara, es una propuesta del equipo y no una especificación oficial de NASA. Candidato de catálogo HiRISE DTM: https://registry.opendata.aws/nasa-usgs-mars-hirise-dtms/. Verificar el producto, cobertura, CRS, datum, escala, licencia y metadatos antes de incorporarlo; la referencia no confirma que haya un DTM compatible con la región piloto.
 
 **Nota de uso:** Worldview está orientado primordialmente a observación terrestre; se considera **referencia de diseño de interfaz de capas**, no fuente automática de topografía marciana. La animación de Curiosity constituye un **ejemplo de comunicación de rutas científicas**, no un DTM descargable. Las fotografías de Perseverance son un recurso visual y científico cuya geolocalización exacta se debe comprobar antes de colocarlas como marcadores. Mars Trek ofrece servicios de mosaicos WMTS y otras capas; la presencia de una capa de imagen no garantiza disponibilidad de un archivo DTM o de valores por píxel.
 
