@@ -57,6 +57,16 @@ button:disabled {
   opacity: 0.52;
 }
 
+.icon-button {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.icon-button--alert {
+  color: var(--red);
+}
+
 button:focus-visible,
 input:focus-visible {
   outline: 2px solid var(--blue);
@@ -671,6 +681,10 @@ input:focus-visible {
   box-shadow: 0 0 8px rgba(255, 183, 3, 0.4);
 }
 
+.status-dot--static {
+  animation: none;
+}
+
 .panel-toggle {
   position: absolute;
   z-index: 3;
@@ -700,6 +714,7 @@ input:focus-visible {
   left: 13px;
 }
 
+.collapsible-panel,
 .mission-setup,
 .route-analysis {
   position: absolute;
@@ -726,26 +741,29 @@ input:focus-visible {
   width: 326px;
 }
 
-.mission-setup--closed,
-.route-analysis--closed {
-  width: 46px;
-  background: rgba(10, 16, 26, 0.86);
-}
-
-.mission-setup--closed .panel-heading,
-.mission-setup--closed .panel-content,
-.route-analysis--closed .panel-heading,
-.route-analysis--closed .panel-content {
+.collapsible-panel--closed .panel-heading,
+.collapsible-panel--closed .panel-content {
   visibility: hidden;
   opacity: 0;
+  pointer-events: none;
 }
 
-.mission-setup--closed .panel-toggle--left {
-  right: 9px;
+.collapsible-panel--closed {
+  width: 0;
+  min-width: 0;
+  overflow: visible;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
-.route-analysis--closed .panel-toggle--right {
-  left: 9px;
+.collapsible-panel--closed .panel-toggle--left {
+  right: -27px;
+}
+
+.collapsible-panel--closed .panel-toggle--right {
+  left: -27px;
 }
 
 .panel-heading {
@@ -765,7 +783,13 @@ input:focus-visible {
   padding-right: 13px;
 }
 
-.panel-heading > svg {
+.panel-heading__action {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.panel-heading__action svg {
   color: var(--blue);
 }
 
@@ -1319,4 +1343,14 @@ input:focus-visible {
   .statusbar__right {
     margin-left: auto;
   }
+}
+
+/* A collapsed panel becomes an overlay toggle only; the viewport keeps all available space. */
+.collapsible-panel--closed {
+  width: 0;
+  min-width: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }

@@ -3,13 +3,15 @@
 import {
   Activity,
   BarChart3,
-  ChevronLeft,
-  ChevronRight,
   Database,
   Download,
   Info,
   Route,
 } from "lucide-react";
+
+import { StatusBadge } from "@/components/atoms/status-badge";
+import { CollapsiblePanel } from "@/components/organisms/collapsible-panel";
+import { PanelHeading } from "@/components/molecules/panel-heading";
 
 type RouteAnalysisPanelProps = {
   open: boolean;
@@ -26,18 +28,13 @@ const metrics = [
 
 export function RouteAnalysisPanel({ open, onToggle }: RouteAnalysisPanelProps) {
   return (
-    <aside className={`route-analysis${open ? " route-analysis--open" : " route-analysis--closed"}`} aria-label="Route analysis">
-      <button className="panel-toggle panel-toggle--right" type="button" onClick={onToggle} aria-label={open ? "Collapse route analysis" : "Open route analysis"}>
-        {open ? <ChevronRight size={15} aria-hidden="true" /> : <ChevronLeft size={15} aria-hidden="true" />}
-      </button>
-
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow"><Activity size={13} aria-hidden="true" /> Route analysis</p>
-          <h2>Comparative telemetry</h2>
-        </div>
-        <span className="state-badge state-badge--pending">NOT RUN</span>
-      </div>
+    <CollapsiblePanel open={open} onToggle={onToggle} side="right" label="Route analysis" className="route-analysis">
+      <PanelHeading
+        eyebrow="Route analysis"
+        title="Comparative telemetry"
+        eyebrowAccessory={<Activity size={13} aria-hidden="true" />}
+        action={<StatusBadge tone="pending">NOT RUN</StatusBadge>}
+      />
 
       <div className="panel-content">
         <div className="analysis-note">
@@ -98,6 +95,6 @@ export function RouteAnalysisPanel({ open, onToggle }: RouteAnalysisPanelProps) 
           <button type="button" disabled>Export manifest</button>
         </div>
       </div>
-    </aside>
+    </CollapsiblePanel>
   );
 }

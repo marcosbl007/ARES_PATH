@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  ChevronLeft,
   ChevronRight,
   CircleDot,
   MapPinned,
@@ -10,6 +9,10 @@ import {
   SlidersHorizontal,
   Target,
 } from "lucide-react";
+
+import { StatusDot } from "@/components/atoms/status-dot";
+import { PanelHeading } from "@/components/molecules/panel-heading";
+import { CollapsiblePanel } from "@/components/organisms/collapsible-panel";
 
 type MissionSetupPanelProps = {
   open: boolean;
@@ -20,18 +23,13 @@ export function MissionSetupPanel({ open, onToggle }: MissionSetupPanelProps) {
   const [selectionMode, setSelectionMode] = useState<"origin" | "destination">("origin");
 
   return (
-    <aside className={`mission-setup${open ? " mission-setup--open" : " mission-setup--closed"}`} aria-label="Mission setup">
-      <button className="panel-toggle panel-toggle--left" type="button" onClick={onToggle} aria-label={open ? "Collapse mission setup" : "Open mission setup"}>
-        {open ? <ChevronLeft size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
-      </button>
-
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow"><span className="status-dot status-dot--blue" /> Mission setup</p>
-          <h2>Traverse configuration</h2>
-        </div>
-        <SlidersHorizontal size={17} aria-hidden="true" />
-      </div>
+    <CollapsiblePanel open={open} onToggle={onToggle} side="left" label="Mission setup" className="mission-setup">
+      <PanelHeading
+        eyebrow="Mission setup"
+        title="Traverse configuration"
+        eyebrowAccessory={<StatusDot tone="blue" />}
+        action={<SlidersHorizontal size={17} aria-hidden="true" />}
+      />
 
       <div className="panel-content">
         <div className="demo-callout">
@@ -93,6 +91,6 @@ export function MissionSetupPanel({ open, onToggle }: MissionSetupPanelProps) {
           <span className="primary-action__suffix">DATA REQUIRED</span>
         </button>
       </div>
-    </aside>
+    </CollapsiblePanel>
   );
 }

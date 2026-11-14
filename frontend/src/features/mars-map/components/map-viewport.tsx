@@ -12,6 +12,10 @@ import {
   Ruler,
 } from "lucide-react";
 
+import { IconButton } from "@/components/atoms/icon-button";
+import { StatusDot } from "@/components/atoms/status-dot";
+import { LayerChip } from "@/components/molecules/layer-chip";
+
 export type MapLayerId = "elevation" | "optical" | "slope" | "thermal";
 
 export type MapLayer = {
@@ -62,7 +66,7 @@ export function MapViewport({
         <div className="map-canvas">
           <div className="map-canvas__vignette" aria-hidden="true" />
           <div className="map-canvas__demo-label">
-            <span className="status-dot status-dot--demo" />
+            <StatusDot tone="demo" />
             SYNTHETIC SURFACE / UI PREVIEW
           </div>
 
@@ -72,39 +76,24 @@ export function MapViewport({
               <span>Layers</span>
             </div>
             {layers.map((layer) => (
-              <button
-                className={`layer-chip${layer.active ? " layer-chip--active" : ""}`}
+              <LayerChip
                 key={layer.id}
-                type="button"
-                onClick={() => onToggleLayer(layer.id)}
-                aria-pressed={layer.active}
-              >
-                <span className="layer-chip__swatch" style={{ backgroundColor: layer.color }} />
-                {layer.label}
-              </button>
+                label={layer.label}
+                color={layer.color}
+                active={layer.active}
+                onToggle={() => onToggleLayer(layer.id)}
+              />
             ))}
           </div>
 
           <div className="map-controls" aria-label="Map controls">
-            <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => onZoomChange(Math.min(5, zoomLevel + 1))}>
-              <Plus size={15} aria-hidden="true" />
-            </button>
-            <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => onZoomChange(Math.max(1, zoomLevel - 1))}>
-              <Minus size={15} aria-hidden="true" />
-            </button>
+            <IconButton label="Zoom in" icon={Plus} size="sm" onClick={() => onZoomChange(Math.min(5, zoomLevel + 1))} />
+            <IconButton label="Zoom out" icon={Minus} size="sm" onClick={() => onZoomChange(Math.max(1, zoomLevel - 1))} />
             <span className="map-controls__divider" />
-            <button type="button" title="Reset view" aria-label="Reset view" onClick={onResetView}>
-              <RotateCcw size={14} aria-hidden="true" />
-            </button>
-            <button type="button" title="Compass" aria-label="Compass">
-              <Compass size={14} aria-hidden="true" />
-            </button>
-            <button type="button" title="Grid" aria-label="Toggle grid">
-              <Grid2X2 size={14} aria-hidden="true" />
-            </button>
-            <button type="button" title="Measure" aria-label="Measure distance">
-              <Ruler size={14} aria-hidden="true" />
-            </button>
+            <IconButton label="Reset view" icon={RotateCcw} size="sm" onClick={onResetView} />
+            <IconButton label="Compass" icon={Compass} size="sm" />
+            <IconButton label="Toggle grid" icon={Grid2X2} size="sm" />
+            <IconButton label="Measure distance" icon={Ruler} size="sm" />
           </div>
 
           <div className="map-graphic" style={{ transform: `scale(${1 + (zoomLevel - 1) * 0.045})` }}>
