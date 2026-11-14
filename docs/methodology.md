@@ -1,4 +1,4 @@
-# Metodología de terreno — ARES PATH
+# Metodología de terreno y rutas — ARES PATH
 
 Este módulo estima pendientes y perfiles sobre una cuadrícula de elevación. No interpreta las imágenes RGB como elevación y no declara una ruta operacionalmente segura. La región debe proporcionar elevaciones en metros, una máscara booleana de datos válidos y tamaños de celda horizontales comprobados en metros. Si no se conoce el CRS o sus unidades, no se debe ejecutar el análisis métrico.
 
@@ -28,7 +28,51 @@ La implementación opera sobre un `RegionData` validado y no crea observaciones 
 
 ## Interfaz para rutas e integración
 
-`app.terrain.analyze_region(region, config)` recibe el `RegionData` de P1 y un `TerrainConfig` o diccionario con `max_slope_deg` y `slope_weight`. Devuelve `TerrainData` con `slope_deg`, `traversable` y `cost_multiplier` de la misma forma que `region.elevation_m`. P3 debe usar `traversable` como máscara obligatoria; el multiplicador es `NaN` donde la celda está bloqueada. La política de coste por paso del planificador debe seguir el contrato de A* de `AGENTS.md` y quedar acordada con P3 antes de integrar rutas. P4 puede llamar `get_terrain_statistics(region, config)` para obtener un resumen sin enviar el raster completo.
+`app.terrain.analyze_region(region, config)` recibe el `RegionData` de P1 y un `TerrainConfig` o diccionario con `max_slope_deg` y `slope_weight`. Devuelve `TerrainData` con `slope_deg`, `traversable` y `cost_multiplier` de la misma forma que `region.elevation_m`. P3 usa `traversable` como máscara obligatoria y `cost_multiplier` en el modo `terrain_aware`; el multiplicador es `NaN` donde la celda está bloqueada. La prueba de integración P2→P3 está en `tests/test_routing.py`. P4 puede llamar `get_terrain_statistics(region, config)` para obtener un resumen sin enviar el raster completo.
+
+## Planificación de rutas con A*
+
+`app.routing` consume el `RegionData` de P1 y el `TerrainData` de P2. `find_shortest_path` y `find_terrain_aware_path` devuelven un `RouteResult` con la secuencia `(row, col)`, sus métricas y el número de celdas expandidas. El motor A* no descarga datos ni modifica la topografía.
+
+### Vecindad y función de coste
+
+- Vecindad de ocho direcciones con longitudes físicas `hypot(delta_col * pixel_size_x_m, delta_row * pixel_size_y_m)`.
+- Una diagonal solo es válida si las dos celdas ortogonales adyacentes también son transitables; no se atraviesan esquinas bloqueadas.
+- Coste de cada tramo: `longitud_m * 0.5 * (multiplicador_actual + multiplicador_vecino)`.
+- Heurística euclídea en metros. Es admisible y consistente porque todos los multiplicadores son mayores o iguales que 1.
+- La máscara obligatoria es `terrain.traversable`. Las celdas `NoData` o con pendiente no calculable nunca se recorren.
+
+### Modos
+
+- `shortest`: usa la misma máscara base y multiplicador unitario. Su valor de `cost` coincide numéricamente con la distancia horizontal en metros.
+- `terrain_aware`: usa la misma máscara base y `terrain.cost_multiplier` de P2, por lo que evita pendientes costosas cuando el desvío compensa. Su `cost` es adimensional.
+- Si no existe ruta, se lanza `NoPathError` con código `NO_PATH`; no se devuelve una lista vacía.
+- `max_expanded_cells` limita la búsqueda (un millón por defecto en el planificador). Al superarlo se lanza `SearchLimitExceeded` con código `SEARCH_LIMIT`.
+
+### Métricas y comparación
+
+`calculate_route_metrics` reutiliza el perfil de elevación de P2 y calcula `distance_m`, `ascent_m`, `descent_m`, `max_slope_deg`, `cost` y `cell_count` sobre la ruta completa. `max_slope_deg` es la pendiente máxima de los tramos muestreados, distinta del mapa de pendientes por celda.
+
+`compare_routes` devuelve las diferencias `terrain_aware - shortest` de distancia, ascenso, descenso, pendiente máxima y número de celdas, además de `same_path`. Por defecto `cost_comparable` es `False`: los dos modos optimizan funciones distintas. La comparación no genera una recomendación de seguridad.
+
+### Uso desde P4
+
+```python
+from app.routing import RoutePlanner
+from app.terrain import analyze_region
+
+terrain = analyze_region(region, {"max_slope_deg": 20.0, "slope_weight": 2.0})
+planner = RoutePlanner()
+shortest = planner.plan(region, terrain, (10, 20), (80, 65), mode="shortest")
+terrain_aware = planner.plan(region, terrain, (10, 20), (80, 65), mode="terrain_aware")
+comparison = planner.compare(region, terrain, (10, 20), (80, 65))
+```
+
+Las coordenadas del ejemplo son ficticias y solo ilustran la interfaz. P4 debe validar región, límites y error `NO_PATH` antes de publicar la respuesta HTTP.
+
+### Pruebas del planificador
+
+`tests/test_routing.py` contiene 23 pruebas deterministas sobre matrices sintéticas: diagonal 3×3 de distancia conocida, píxeles anisótropos, obstáculo central, prohibición de atravesar esquinas, destino encerrado sin ruta, inicio igual al destino, franja de coste alto, comparador, flujo P2→P3, entradas inválidas, límite de expansión, diez rejillas aleatorias con semilla fija comparadas contra Dijkstra y rejilla libre de 100×100. No se usan observaciones NASA ni resultados hardcodeados.
 
 ## Comprobación con el recorte real de Jezero
 
@@ -62,4 +106,4 @@ summary = get_terrain_statistics(region, config)
 
 El núcleo de P2 está implementado y probado: pendiente, máscara de transitabilidad, multiplicadores de coste, perfil y estadísticas. La suite de terreno pasó 16 pruebas y la suite conjunta P1+P2 pasó 35 pruebas el 14 de noviembre de 2026. Sobre el recorte real, el mapa completo de pendientes coincidió con el cálculo de referencia de `np.gradient` en todas las celdas válidas (diferencia máxima 0°). Un perfil real de tres celdas `(128,128) → (128,129) → (129,130)` produjo 2.4375050417 m de distancia horizontal, 0.051025390625 m de ascenso y 0 m de descenso; es una comprobación del cálculo, no una ruta optimizada.
 
-Queda por integrar la salida con P3 y probar una ruta calculada por su planificador; el módulo de P3 aún está vacío en esta rama. P3 debe aplicar la máscara y acordar la fórmula de coste de cada paso, incluyendo cómo usa los multiplicadores de las celdas vecinas. P4 debe coordinar los modelos HTTP y decidir el registro de los tres endpoints de terreno definidos en `AGENTS.md`; todavía no están publicados. La dependencia de ejecución del DTM real sigue siendo el TIFF local reproducible descrito en `docs/nasa-data-sources.md`, excluido de Git.
+Queda pendiente ejecutar una ruta sobre el DTM real `jezero_fan_256` y publicar los endpoints HTTP de P3; el entorno actual de pruebas no tiene `rasterio` ni el TIFF local, por lo que la validación de P3 es sintética y la integración P2→P3 usa terreno sintético con la misma estructura de contrato. P3 ya consume `terrain.traversable`, `terrain.cost_multiplier` y los tamaños de píxel de `RegionData`. P4 debe coordinar los modelos HTTP y decidir el registro de los endpoints de rutas y de los tres endpoints de terreno definidos en `AGENTS.md`; todavía no están publicados. La dependencia de ejecución del DTM real sigue siendo el TIFF local reproducible descrito en `docs/nasa-data-sources.md`, excluido de Git.
