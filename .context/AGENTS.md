@@ -734,7 +734,7 @@ Recomendación de demo: panel de misión izquierda, mapa central, comparación d
 
 **P1:** [ ] DTM real descargado [ ] CRS/unidades [ ] AOI [ ] NoData [ ] sources.json [ ] tests [ ] entrega a P2.
 
-**P2:** [ ] pendiente [ ] máscara [ ] costes [ ] perfil [ ] tests plano/rampa/NoData [ ] entrega a P3.
+**P2:** [x] pendiente [x] máscara [x] costes [x] perfil [x] tests plano/rampa/NoData [ ] integración de entrega a P3 [ ] endpoints HTTP de terreno coordinados con P4. La interfaz y un ejemplo de consumo están documentados en `docs/methodology.md`; aún no hay una prueba P2→P3 porque el módulo de P3 sigue vacío en esta rama.
 
 **P3:** [ ] A* [ ] obstáculos [ ] dos modos [ ] métricas [ ] tests de optimalidad/bordes [ ] entrega a P4.
 
@@ -779,6 +779,16 @@ Pendientes: P4 debe registrar el router y coordinar dependencias; el equipo debe
 Persona 1 solicitó incorporar una ortoimagen compatible. Se descargó `PSP_002387_1985_RED_C_01_ORTHO` y su etiqueta PDS desde el directorio oficial del DTM. Se preparó un TIFF óptico 256 × 256 sobre la cuadrícula de `jezero_fan_256`, sin remuestrear ni modificar el DTM. Se mantiene `RegionData`; `/layers` puede anunciar la imagen como capa contextual, con `used_for_routing=false`.
 
 Se detectaron diferencias entre la georreferenciación incrustada del JP2 y la etiqueta PDS (parámetros del CRS y origen desplazado 1.5 píxeles). Se adoptó explícitamente la cuadrícula PDS compartida, interpretada con la convención de GDAL del IMG original, conservando los metadatos discrepantes para auditoría. Se verificaron tres posiciones de cuadrícula y se generó una comparación visual. Esto no constituye control geodésico independiente: el estado es `PDS grid verified; independent visual review pending`. Validación actual: 19 pruebas aprobadas y `/layers` HTTP 200 con ambas capas. P4 debe integrar el router y definir cómo servir la imagen; el equipo debe revisar rasgos y referencias independientes. Comandos y limitaciones en [NASA Data Processing](../docs/nasa-data-sources.md). Sin PR ni commit automático; hora exacta no registrada.
+
+---
+
+### 2026-11-14 12:43 (Guatemala) — Estado del módulo de terreno, Persona 2
+
+En `feature/terrain-analysis` se fusionó `develop` (`ecfe884`) y se comprobó que el `RegionData` de P1 funciona directamente con `analyze_region(region, config) -> TerrainData`. P2 entrega `slope_deg`, `traversable` y `cost_multiplier`, además de perfil de elevación y resumen estadístico. El cálculo usa distancias de píxel en metros, diferencias centrales en el interior, unilaterales en bordes, NoData no transitable y coste exploratorio `1 + slope_weight * (slope_deg / max_slope_deg) ** 2`. Los valores predeterminados son `max_slope_deg=20` y `slope_weight=2`; son parámetros del prototipo, no límites de seguridad. No se cambiaron los contratos de las secciones 4.3–4.6.
+
+Validación: 16 pruebas de terreno y 35 pruebas conjuntas P1+P2 aprobadas el 14 de noviembre de 2026. Cubren plano, rampas X/Y de 45°, píxeles anisótropos, NoData, umbral inclusivo, costes, perfiles y compatibilidad con el `RegionData` concreto de P1. Se descargó de nuevo el IMG HiRISE `DTEEC_002387_1985_003798_1985_A01`; tanto su SHA256 como el del TIFF reconstruido coinciden con el sidecar de P1. El TIFF local está excluido de Git. Sobre `jezero_fan_256` (256 × 256, 1.0096476466229 m/píxel), las 65 536 celdas son válidas y, con umbral 20°, transitables según el criterio elegido. La pendiente calculada tiene media 2.8937817499° y máximo 17.3470597057°. En `(row=128, col=128)`, el cálculo manual da 3.17868046266°, igual al módulo. En este recorte sin NoData, la matriz completa coincidió con el cálculo de referencia de `np.gradient` (diferencia máxima 0°). La fórmula, los valores de entrada, la procedencia y el ejemplo de consumo están en [Metodología de terreno](../docs/methodology.md). Codex ayudó con código, pruebas y documentación; el equipo debe revisar los resultados antes de usarlos en la entrega.
+
+Pendiente para cerrar la integración: P3 debe consumir `terrain.traversable`, `terrain.cost_multiplier` y los tamaños de píxel de `RegionData`, acordando con P2 la fórmula de coste por paso antes de comparar rutas; falta una prueba P2→P3 con ruta real. P4 debe coordinar los modelos de solicitud/respuesta y decidir el registro de los endpoints `/api/terrain/...` listados en 4.6. Hoy el módulo P2 expone servicios internos, pero esos endpoints HTTP aún no están publicados. El `pyproject.toml` compartido sigue vacío y P4 coordina las dependencias. No presentar la clasificación de celdas como garantía de movilidad o seguridad, ni tratar la ortoimagen como datos de elevación.
 
 ## 13. Mensaje de contexto que cualquier integrante debe poder explicar
 

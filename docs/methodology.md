@@ -24,7 +24,7 @@ Una ruta de un solo punto tiene distancia, ascenso, descenso y pendiente máxima
 
 ## Alcance de datos
 
-La implementación prepara las operaciones sobre un `RegionData` validado, pero no crea observaciones de Marte ni presupone que el proyecto ya tenga un DTM real. La procedencia, cobertura, datum, proyección, unidad horizontal y resolución deben documentarse junto al raster concreto por el módulo de ingesta antes de presentar métricas como resultados de una región marciana.
+La implementación opera sobre un `RegionData` validado y no crea observaciones de Marte. P1 ya identificó y preparó el DTM real `jezero_fan_256`; otros recortes deben aportar igualmente procedencia, cobertura, datum, proyección, unidad horizontal y resolución verificadas antes de presentar métricas como resultados de una región marciana.
 
 ## Interfaz para rutas e integración
 
@@ -57,3 +57,9 @@ summary = get_terrain_statistics(region, config)
 # P3 consume terrain.traversable y terrain.cost_multiplier junto con
 # region.pixel_size_x_m y region.pixel_size_y_m.
 ```
+
+## Estado de entrega y pendientes
+
+El núcleo de P2 está implementado y probado: pendiente, máscara de transitabilidad, multiplicadores de coste, perfil y estadísticas. La suite de terreno pasó 16 pruebas y la suite conjunta P1+P2 pasó 35 pruebas el 14 de noviembre de 2026. Sobre el recorte real, el mapa completo de pendientes coincidió con el cálculo de referencia de `np.gradient` en todas las celdas válidas (diferencia máxima 0°). Un perfil real de tres celdas `(128,128) → (128,129) → (129,130)` produjo 2.4375050417 m de distancia horizontal, 0.051025390625 m de ascenso y 0 m de descenso; es una comprobación del cálculo, no una ruta optimizada.
+
+Queda por integrar la salida con P3 y probar una ruta calculada por su planificador; el módulo de P3 aún está vacío en esta rama. P3 debe aplicar la máscara y acordar la fórmula de coste de cada paso, incluyendo cómo usa los multiplicadores de las celdas vecinas. P4 debe coordinar los modelos HTTP y decidir el registro de los tres endpoints de terreno definidos en `AGENTS.md`; todavía no están publicados. La dependencia de ejecución del DTM real sigue siendo el TIFF local reproducible descrito en `docs/nasa-data-sources.md`, excluido de Git.
