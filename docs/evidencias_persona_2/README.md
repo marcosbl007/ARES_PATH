@@ -1,6 +1,6 @@
 # Evidencias de Persona 2 — Terrain
 
-Estas imágenes son láminas generadas a partir de ejecuciones locales y del DTM real preparado por P1. No son capturas directas de una ventana de terminal. Los registros de `pytest` usados para la primera lámina se conservan aquí sin modificar.
+Estas imágenes son láminas generadas a partir de ejecuciones locales y del DTM real preparado por P1. No son capturas directas de una ventana de terminal. Los registros de `pytest` usados para la primera lámina se conservan aquí sin modificar. Reflejan el estado anterior a la integración de P3; la validación conjunta posterior de P1+P2+P3 (58 pruebas y una ruta real) está en `docs/validation.md`.
 
 | Archivo | Qué demuestra |
 |---|---|
@@ -19,4 +19,4 @@ Para repetir las pruebas desde `backend/` con el entorno instalado:
 .\.venv\Scripts\python.exe -m pytest tests/test_terrain.py tests/test_nasa_data.py -q --disable-warnings
 ```
 
-**Alcance:** estas evidencias prueban el módulo interno de P2 y su compatibilidad con `RegionData` de P1. La integración de rutas con P3 y los endpoints HTTP coordinados por P4 siguen pendientes. La máscara de transitabilidad usa un umbral exploratorio; no acredita seguridad de una caminata marciana.
+**Alcance:** estas imágenes prueban el módulo interno de P2 y su compatibilidad con `RegionData` de P1. P2 y P3 ya se probaron juntos después sobre el DTM real; los endpoints HTTP coordinados por P4 siguen pendientes. La máscara de transitabilidad usa un umbral exploratorio; no acredita seguridad de una caminata marciana.

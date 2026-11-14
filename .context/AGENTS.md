@@ -736,7 +736,7 @@ Recomendación de demo: panel de misión izquierda, mapa central, comparación d
 
 **P2:** [x] pendiente [x] máscara [x] costes [x] perfil [x] tests plano/rampa/NoData [x] integración de entrega a P3 [ ] endpoints HTTP de terreno coordinados con P4. La interfaz y un ejemplo de consumo están documentados en `docs/methodology.md`; la prueba P2→P3 usa `analyze_region` y terreno sintético en `tests/test_routing.py`.
 
-**P3:** [x] A* [x] obstáculos [x] dos modos [x] métricas [x] tests de optimalidad/bordes [ ] entrega a P4. Implementado en `backend/app/routing/` con 23 pruebas aprobadas sobre datos sintéticos; falta ejecutar una ruta sobre el DTM real y publicar los endpoints HTTP coordinados con P4.
+**P3:** [x] A* [x] obstáculos [x] dos modos [x] métricas [x] tests de optimalidad/bordes [x] ruta sobre el DTM real [ ] entrega a P4. Implementado en `backend/app/routing/` con 23 pruebas sobre datos sintéticos; la integración real P1→P2→P3 se comprobó después en `jezero_fan_256`. Quedan pendientes los endpoints HTTP coordinados con P4.
 
 **P4:** [ ] servicio de misión [ ] endpoints [ ] DTOs [ ] integración [ ] README [ ] CORS [ ] smoke [ ] demo pública.
 
@@ -788,7 +788,7 @@ En `feature/terrain-analysis` se fusionó `develop` (`ecfe884`) y se comprobó q
 
 Validación: 16 pruebas de terreno y 35 pruebas conjuntas P1+P2 aprobadas el 14 de noviembre de 2026. Cubren plano, rampas X/Y de 45°, píxeles anisótropos, NoData, umbral inclusivo, costes, perfiles y compatibilidad con el `RegionData` concreto de P1. Se descargó de nuevo el IMG HiRISE `DTEEC_002387_1985_003798_1985_A01`; tanto su SHA256 como el del TIFF reconstruido coinciden con el sidecar de P1. El TIFF local está excluido de Git. Sobre `jezero_fan_256` (256 × 256, 1.0096476466229 m/píxel), las 65 536 celdas son válidas y, con umbral 20°, transitables según el criterio elegido. La pendiente calculada tiene media 2.8937817499° y máximo 17.3470597057°. En `(row=128, col=128)`, el cálculo manual da 3.17868046266°, igual al módulo. En este recorte sin NoData, la matriz completa coincidió con el cálculo de referencia de `np.gradient` (diferencia máxima 0°). La fórmula, los valores de entrada, la procedencia y el ejemplo de consumo están en [Metodología de terreno](../docs/methodology.md). Codex ayudó con código, pruebas y documentación; el equipo debe revisar los resultados antes de usarlos en la entrega.
 
-Pendiente para cerrar la integración: P3 debe consumir `terrain.traversable`, `terrain.cost_multiplier` y los tamaños de píxel de `RegionData`, acordando con P2 la fórmula de coste por paso antes de comparar rutas; falta una prueba P2→P3 con ruta real. P4 debe coordinar los modelos de solicitud/respuesta y decidir el registro de los endpoints `/api/terrain/...` listados en 4.6. Hoy el módulo P2 expone servicios internos, pero esos endpoints HTTP aún no están publicados. El `pyproject.toml` compartido sigue vacío y P4 coordina las dependencias. No presentar la clasificación de celdas como garantía de movilidad o seguridad, ni tratar la ortoimagen como datos de elevación. Las imágenes y registros verificables para comunicar el trabajo de P2 están en [Evidencias de Persona 2](../docs/evidencias_persona_2/README.md).
+Pendiente en este corte inicial: P3 debía consumir `terrain.traversable`, `terrain.cost_multiplier` y los tamaños de píxel de `RegionData`, acordando con P2 la fórmula de coste por paso; la comprobación con ruta real se completó posteriormente y se registra abajo. P4 debe coordinar los modelos de solicitud/respuesta y decidir el registro de los endpoints `/api/terrain/...` listados en 4.6. El módulo P2 expone servicios internos, pero esos endpoints HTTP aún no están publicados. El `pyproject.toml` compartido sigue vacío y P4 coordina las dependencias. No presentar la clasificación de celdas como garantía de movilidad o seguridad, ni tratar la ortoimagen como datos de elevación. Las imágenes y registros verificables para comunicar el trabajo de P2 están en [Evidencias de Persona 2](../docs/evidencias_persona_2/README.md).
 
 ### 2026-11-14 — Módulo de rutas, Persona 3
 
@@ -798,7 +798,15 @@ Se implementó P3 en `backend/app/routing/{astar,cost_function,route_planner,rou
 
 Validación: 23 pruebas de rutas aprobadas el 14 de noviembre de 2026, incluyendo diagonal 3×3, píxeles anisótropos, obstáculo central, ausencia de cruce de esquinas, destino encerrado, inicio igual al destino, franja de coste alto, comparador, integración P2→P3, entradas inválidas, diez rejillas aleatorias con semilla fija contra Dijkstra y rejilla de 100×100. Las pruebas son sintéticas; no se ejecutó una ruta sobre `jezero_fan_256` porque el entorno disponible no tiene `rasterio` ni el TIFF local. Detalles y comandos en [Metodología](../docs/methodology.md) y [Validación](../docs/validation.md).
 
-Pendiente: P4 debe coordinar los DTOs y publicar `POST /api/routes/calculate` y `POST /api/routes/compare`; el equipo debe ejecutar Gate C sobre el DTM real en un entorno con `rasterio`. Asistencia de IA: el agente de OpenCode (DeepSeek V4.1 Flash Free) apoyó con código, pruebas y documentación; el equipo debe revisar y validar los resultados. Sin PR ni commit automático.
+Pendiente al momento de la entrega original de P3: P4 debía coordinar los DTOs y publicar `POST /api/routes/calculate` y `POST /api/routes/compare`; Gate C sobre el DTM real se completó después y se registra abajo. Asistencia de IA: el agente de OpenCode (DeepSeek V4.1 Flash Free) apoyó con código, pruebas y documentación; el equipo debe revisar y validar los resultados. Sin PR ni commit automático.
+
+---
+
+### 2026-11-14 15:38 (Guatemala) — Integración P1→P2→P3 sobre Jezero
+
+Se actualizó `develop` y se incorporaron sus cambios en `feature/terrain-analysis` por avance rápido, sin conflictos. En el entorno local con el TIFF verificado `jezero_fan_256_elevation.tif`, `RegionRepository` entregó el `RegionData` de P1, `analyze_region` generó el `TerrainData` de P2 y `RoutePlanner` de P3 calculó ambas rutas usando la máscara, los multiplicadores y la escala métrica. Las 58 pruebas conjuntas de P1, P2 y P3 pasaron; no se modificaron contratos públicos ni algoritmos.
+
+Comprobación real con origen `(10,20)` y destino `(80,65)`, expresados en índices internos de prueba: ambas rutas fueron válidas, con 71 celdas y 89.495 m de distancia horizontal aproximada, pero sus secuencias difirieron. Al evaluar ambas con **la misma** función ponderada de P2, el coste de `shortest` fue 94.075194 y el de `terrain_aware` 92.531768. La pendiente máxima por tramo fue 5.277° y 5.654°, respectivamente; minimizar el coste acumulado no garantiza disminuir cada indicador. La verificación detallada, su alcance y las limitaciones están en [Validación](../docs/validation.md). Gate C quedó comprobado para este recorte y par de puntos. Siguen pendientes los endpoints HTTP y el flujo P4/frontend; el TIFF local no está versionado.
 
 ---
 

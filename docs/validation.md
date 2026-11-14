@@ -29,4 +29,18 @@ Casos verificados con matrices sintéticas:
 - Diez rejillas aleatorias 8×8 con semilla fija: el coste de A* coincide con una implementación de referencia de Dijkstra.
 - Rejilla libre 100×100: ruta diagonal conocida de `99 * sqrt(2)` m.
 
-La suite completa del repositorio no se recolectó en este entorno porque `tests/test_nasa_data.py` requiere `rasterio` y una prueba de terreno requiere `affine`; esas dependencias pertenecen a P1/P2 y no se modificaron. La ruta sobre el DTM real `jezero_fan_256` queda pendiente de ejecutar en el entorno que tenga el TIFF local y `rasterio`.
+En el entorno original de P3 no se recolectó la suite completa porque faltaban `rasterio`, `affine` y el TIFF local. La integración posterior con el DTM real se registra a continuación.
+
+## P1 → P2 → P3 — Comprobación con el DTM real
+
+Fecha: 14 de noviembre de 2026. Desde `backend/`, con el TIFF local `jezero_fan_256_elevation.tif` verificado por P1 y Python 3.11.9, se ejecutaron conjuntamente `tests/test_nasa_data.py`, `tests/test_terrain.py` y `tests/test_routing.py`: **58 pruebas aprobadas**. Los 86 avisos son de deprecación/georreferenciación de dependencias y no hicieron fallar la suite.
+
+Se cargó `RegionData` mediante `RegionRepository().get_region("jezero_fan_256")`, se generó `TerrainData` con `analyze_region(region, {"max_slope_deg": 20.0, "slope_weight": 2.0})` y se llamó a `RoutePlanner().compare(region, terrain, (10, 20), (80, 65))`. Estas son celdas internas de prueba del recorte, no coordenadas geográficas ni puntos recomendados para una misión.
+
+- Las matrices miden 256 × 256; las 65 536 celdas son transitables bajo ese umbral exploratorio.
+- Ambas rutas incluyen los extremos pedidos y solo usan celdas marcadas como transitables por P2.
+- Las dos rutas tienen 71 celdas y una distancia horizontal de aproximadamente 89.495 m; las secuencias de celdas son distintas.
+- Evaluada con **la misma** función ponderada de P2, la ruta `shortest` cuesta 94.075194 y la ruta `terrain_aware` cuesta 92.531768, una reducción de 1.543426 unidades de coste del modelo. El `cost` informado directamente por el modo `shortest` usa pesos unitarios y no se comparó con el del otro modo.
+- La pendiente máxima por tramo fue 5.277° para `shortest` y 5.654° para `terrain_aware`. El segundo modo minimiza el coste acumulado definido; no garantiza reducir cada métrica individual ni certifica seguridad.
+
+Esta ejecución completa Gate C para el recorte y los puntos probados. El TIFF sigue excluido de Git; otro checkout debe reconstruirlo según `docs/nasa-data-sources.md`. Aún faltan la integración HTTP y la demo completa de P4.
