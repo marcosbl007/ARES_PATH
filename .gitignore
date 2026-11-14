@@ -43,6 +43,8 @@ backend/data/raw/*
 backend/data/processed/*
 !backend/data/processed/.gitkeep
 !backend/data/processed/*.json
+!backend/data/processed/jezero_fan_256_elevation.tif
+!backend/data/processed/jezero_fan_256_orthoimage.tif
 
 # Local test/export artifacts
 *.sqlite3
