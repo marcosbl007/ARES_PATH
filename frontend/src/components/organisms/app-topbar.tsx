@@ -1,5 +1,4 @@
 import {
-  Activity,
   BarChart3,
   Cloud,
   CloudDownload,
@@ -7,8 +6,8 @@ import {
   Map as MapIcon,
   SlidersHorizontal,
 } from "lucide-react";
+import Image from "next/image";
 
-import { StatusDot } from "@/components/atoms/status-dot";
 import { NavItem } from "@/components/molecules/nav-item";
 
 const navigationItems = [
@@ -23,17 +22,18 @@ export function AppTopbar() {
     <header className="topbar">
       <div className="topbar__identity">
         <div className="brand-lockup">
-          <span className="brand-lockup__icon">
-            <Activity size={15} aria-hidden="true" />
-          </span>
-          <span className="brand-lockup__name">ARES PATH</span>
-          <span className="brand-lockup__version">FOUNDATION</span>
+          <Image
+            className="brand-lockup__logo"
+            src="/brand/ares-path-logo-rectangular.png"
+            alt="ARES PATH"
+            width={172}
+            height={44}
+            priority
+          />
         </div>
-        <div className="mission-chip">
-          <StatusDot tone="red" />
-          <span>PROTOTYPE / NOT OPERATIONAL</span>
-          <span className="mission-chip__divider">/</span>
-          <strong>MISSION NOT LOADED</strong>
+        <div className="mission-attribution" aria-label="ARES PATH by TUKTUK INTERGALATICO">
+          <span className="mission-attribution__divider">|</span>
+          <strong>by TUKTUK INTERGALATICO</strong>
         </div>
       </div>
 

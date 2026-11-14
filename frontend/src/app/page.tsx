@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { StatusDot } from "@/components/atoms/status-dot";
+import { BrandLoadingScreen } from "@/components/organisms/brand-loading-screen";
 import { AppTopbar } from "@/components/organisms/app-topbar";
 import { WorkspaceRail } from "@/components/organisms/workspace-rail";
 import { MapViewport, type MapLayer, type MapLayerId } from "@/features/mars-map/components/map-viewport";
@@ -17,10 +18,17 @@ const initialLayers: MapLayer[] = [
 ];
 
 export default function Home() {
+  const [isLoading, setIsLoading] = useState(true);
   const [layers, setLayers] = useState(initialLayers);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [setupOpen, setSetupOpen] = useState(true);
   const [analysisOpen, setAnalysisOpen] = useState(true);
+
+  useEffect(() => {
+    const loadingTimer = window.setTimeout(() => setIsLoading(false), 2500);
+
+    return () => window.clearTimeout(loadingTimer);
+  }, []);
 
   const toggleLayer = (layerId: MapLayerId) => {
     setLayers((currentLayers) =>
@@ -31,6 +39,7 @@ export default function Home() {
   return (
     <div className="ares-shell" suppressHydrationWarning>
       <div className="ares-shell__scanlines" aria-hidden="true" />
+      <BrandLoadingScreen visible={isLoading} />
 
       <AppTopbar />
 
@@ -54,7 +63,7 @@ export default function Home() {
 
       <footer className="statusbar">
         <span>
-          <StatusDot tone="blue" /> UI FOUNDATION / READY
+          <StatusDot tone="blue" /> UI CONSOLE / READY
         </span>
         <span>DATA SOURCES: PENDING</span>
         <span>CRS: PENDING</span>
