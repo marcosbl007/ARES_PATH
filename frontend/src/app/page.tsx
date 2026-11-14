@@ -63,7 +63,7 @@ export default function Home() {
 
       <footer className="statusbar">
         <span>
-          <StatusDot tone="blue" /> UI FOUNDATION / READY
+          <StatusDot tone="blue" /> UI CONSOLE / READY
         </span>
         <span>DATA SOURCES: PENDING</span>
         <span>CRS: PENDING</span>

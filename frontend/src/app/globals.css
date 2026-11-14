@@ -102,46 +102,25 @@ input:focus-visible {
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: radial-gradient(circle at 50% 42%, rgba(28, 79, 164, 0.26), transparent 34%), #020408;
+  background: #020408;
   color: var(--text);
-}
-
-.brand-loader::before,
-.brand-loader::after {
-  position: absolute;
-  pointer-events: none;
-  content: "";
-}
-
-.brand-loader::before {
-  inset: 10%;
-  border: 1px solid rgba(56, 189, 248, 0.12);
-  box-shadow: inset 0 0 80px rgba(56, 189, 248, 0.05), 0 0 24px rgba(56, 189, 248, 0.06);
-}
-
-.brand-loader::after {
-  inset: 0;
-  opacity: 0.16;
-  background: linear-gradient(rgba(15, 23, 42, 0) 50%, rgba(0, 0, 0, 0.36) 50%);
-  background-size: 100% 4px;
 }
 
 .brand-loader__content {
   position: relative;
   z-index: 1;
   display: flex;
-  width: min(460px, calc(100% - 40px));
+  width: min(700px, calc(100% - 40px));
   align-items: center;
   flex-direction: column;
   text-align: center;
 }
 
 .brand-loader__logo-shell {
-  width: min(390px, 78vw);
+  width: min(620px, 84vw);
   aspect-ratio: 3 / 2;
   display: grid;
   place-items: center;
-  filter: drop-shadow(0 0 24px rgba(56, 189, 248, 0.28));
 }
 
 .brand-loader__logo {
@@ -152,18 +131,11 @@ input:focus-visible {
   animation: brand-loader-pulse 1.8s ease-in-out infinite;
 }
 
-.brand-loader__eyebrow,
 .brand-loader__status,
 .brand-loader__meta {
   margin: 0;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-}
-
-.brand-loader__eyebrow {
-  color: var(--blue);
-  font-size: 10px;
-  font-weight: 800;
 }
 
 .brand-loader__status {
@@ -231,42 +203,14 @@ input:focus-visible {
 .brand-lockup {
   gap: 7px;
   min-width: max-content;
-  padding: 7px 9px;
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  background: linear-gradient(145deg, #152234, #080d15);
-  box-shadow: var(--panel-shadow);
-}
-
-.brand-lockup__icon {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  border: 1px solid rgba(56, 189, 248, 0.62);
-  color: var(--blue);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
-}
-
-.brand-lockup__name {
-  color: #f8fafc;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
+  padding: 0;
 }
 
 .brand-lockup__logo {
   display: block;
-  width: 126px;
-  height: 28px;
+  width: 172px;
+  height: 38px;
   object-fit: contain;
-}
-
-.brand-lockup__version {
-  padding-left: 7px;
-  border-left: 1px solid var(--line-strong);
-  color: var(--muted);
-  font-size: 9px;
-  letter-spacing: 0.08em;
 }
 
 .mission-chip {
@@ -1414,7 +1358,6 @@ input:focus-visible {
     padding: 6px 8px;
   }
 
-  .brand-lockup__version,
   .mission-chip,
   .relay-status,
   .toolbar-button {

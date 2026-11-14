@@ -27,11 +27,10 @@ export function AppTopbar() {
             className="brand-lockup__logo"
             src="/brand/ares-path-logo-rectangular.png"
             alt="ARES PATH"
-            width={138}
-            height={36}
+            width={172}
+            height={44}
             priority
           />
-          <span className="brand-lockup__version">FOUNDATION</span>
         </div>
         <div className="mission-chip">
           <StatusDot tone="red" />

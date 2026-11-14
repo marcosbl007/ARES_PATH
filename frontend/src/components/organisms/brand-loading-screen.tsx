@@ -22,7 +22,6 @@ export function BrandLoadingScreen({ visible }: BrandLoadingScreenProps) {
             className="brand-loader__logo"
           />
         </div>
-        <p className="brand-loader__eyebrow">ARES PATH / FOUNDATION</p>
         <p className="brand-loader__status">INITIALIZING MISSION WORKSPACE</p>
         <div className="brand-loader__progress" aria-hidden="true">
           <span />
