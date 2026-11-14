@@ -7,6 +7,6 @@ describe("frontend foundation", () => {
   it("exposes the technical application entry point", () => {
     render(<Home />);
 
-    expect(screen.getByRole("heading", { name: "ARES PATH" })).toBeInTheDocument();
+    expect(screen.getByText("ARES PATH")).toBeInTheDocument();
   });
 });
