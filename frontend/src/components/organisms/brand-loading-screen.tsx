@@ -26,7 +26,6 @@ export function BrandLoadingScreen({ visible }: BrandLoadingScreenProps) {
         <div className="brand-loader__progress" aria-hidden="true">
           <span />
         </div>
-        <p className="brand-loader__meta">PROTOTYPE / NOT OPERATIONAL</p>
       </div>
     </div>
   );

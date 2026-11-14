@@ -17,9 +17,9 @@
   --blue-deep: #0b3d91;
   --amber: #fdb813;
   --red: #fc3d21;
-  --panel-shadow: 10px 10px 22px rgba(0, 0, 0, 0.58), -7px -7px 18px rgba(83, 158, 210, 0.09);
-  --sunken-shadow: inset 6px 6px 13px rgba(0, 0, 0, 0.7), inset -5px -5px 12px rgba(91, 192, 235, 0.055);
-  --raised-shadow: 7px 7px 16px rgba(0, 0, 0, 0.58), -5px -5px 12px rgba(91, 192, 235, 0.08);
+  --panel-shadow: 9px 10px 20px rgba(0, 0, 0, 0.58), -3px -3px 8px rgba(135, 170, 198, 0.035);
+  --sunken-shadow: inset 6px 6px 13px rgba(0, 0, 0, 0.7), inset -3px -3px 7px rgba(135, 170, 198, 0.025);
+  --raised-shadow: 7px 8px 16px rgba(0, 0, 0, 0.56), -3px -3px 8px rgba(135, 170, 198, 0.035);
   --radius-xs: 5px;
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -86,7 +86,7 @@ input:focus-visible {
   min-height: 100dvh;
   height: 100dvh;
   overflow: hidden;
-  background: radial-gradient(circle at 52% 16%, rgba(11, 61, 145, 0.18), transparent 36%), var(--ink-1);
+  background: var(--ink-1);
   font-size: 11px;
   letter-spacing: 0.01em;
 }
@@ -137,8 +137,7 @@ input:focus-visible {
   animation: brand-loader-pulse 1.8s ease-in-out infinite;
 }
 
-.brand-loader__status,
-.brand-loader__meta {
+.brand-loader__status {
   margin: 0;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -163,15 +162,8 @@ input:focus-visible {
   display: block;
   width: 42%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, var(--blue), white);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.65);
+  background: var(--blue);
   animation: brand-loader-progress 2.4s ease-in-out forwards;
-}
-
-.brand-loader__meta {
-  margin-top: 12px;
-  color: var(--faint);
-  font-size: 7px;
 }
 
 .topbar {
@@ -191,6 +183,7 @@ input:focus-visible {
 .topbar__identity,
 .topbar__actions,
 .brand-lockup,
+.mission-attribution,
 .mission-chip,
 .topnav,
 .topnav__item,
@@ -240,6 +233,25 @@ input:focus-visible {
 
 .mission-chip__divider {
   color: var(--faint);
+}
+
+.mission-attribution {
+  gap: 10px;
+  min-width: max-content;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.mission-attribution__divider {
+  color: var(--faint);
+}
+
+.mission-attribution strong {
+  color: var(--text);
+  font-size: 9px;
+  font-weight: 700;
 }
 
 .topnav {
@@ -439,7 +451,7 @@ input:focus-visible {
   inset: 0;
   pointer-events: none;
   border-radius: 2px;
-  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.84), inset 0 0 12px rgba(59, 130, 246, 0.16);
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
 }
 
 .map-canvas__demo-label {
@@ -726,17 +738,14 @@ input:focus-visible {
 
 .status-dot--blue {
   background: var(--blue);
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.52);
 }
 
 .status-dot--red {
   background: var(--red);
-  box-shadow: 0 0 8px rgba(251, 113, 133, 0.45);
 }
 
 .status-dot--demo {
   background: var(--amber);
-  box-shadow: 0 0 8px rgba(255, 183, 3, 0.4);
 }
 
 .status-dot--static {
@@ -1519,7 +1528,7 @@ input:focus-visible {
 .rail-button--active {
   border-color: rgba(91, 192, 235, 0.6);
   background: linear-gradient(145deg, #17639d, #0b3d91);
-  box-shadow: var(--sunken-shadow), 0 0 12px rgba(11, 61, 145, 0.24);
+  box-shadow: var(--sunken-shadow);
 }
 
 .main-stage {
@@ -1637,7 +1646,7 @@ input:focus-visible {
 }
 
 .primary-action:not(:disabled):hover {
-  box-shadow: var(--sunken-shadow), 0 0 14px rgba(11, 61, 145, 0.3);
+  box-shadow: var(--sunken-shadow);
 }
 
 .route-card--adaptive {
@@ -1645,9 +1654,9 @@ input:focus-visible {
 }
 
 .status-dot--blue {
-  box-shadow: 0 0 9px rgba(91, 192, 235, 0.62);
+  box-shadow: none;
 }
 
 .status-dot--red {
-  box-shadow: 0 0 9px rgba(252, 61, 33, 0.52);
+  box-shadow: none;
 }
