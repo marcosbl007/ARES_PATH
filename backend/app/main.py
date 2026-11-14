@@ -19,7 +19,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 
-from app.api.router import router as api_router
+from app.api.router import create_api_router
+from app.missions.mission_service import MissionService
+from app.nasa_data.repository import RegionRepository
 
 
 logger = logging.getLogger("ares_path.api")
@@ -54,7 +56,12 @@ class AppSettings:
         )
 
 
-def create_app(settings: AppSettings | None = None) -> FastAPI:
+def create_app(
+    settings: AppSettings | None = None,
+    *,
+    region_repository: RegionRepository | None = None,
+    mission_service: MissionService | None = None,
+) -> FastAPI:
     """Create the application, keeping construction friendly to tests."""
 
     app_settings = settings or AppSettings.from_environment()
@@ -79,7 +86,17 @@ def create_app(settings: AppSettings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    application.include_router(api_router)
+    application.include_router(
+        create_api_router(
+            data_root=app_settings.data_root,
+            project_name=app_settings.project_name,
+            version=app_settings.version,
+            challenge=app_settings.challenge,
+            methodology_version=app_settings.methodology_version,
+            region_repository=region_repository,
+            mission_service=mission_service,
+        )
+    )
 
     @application.get("/", tags=["meta"], summary="Backend metadata")
     async def root() -> dict[str, str]:

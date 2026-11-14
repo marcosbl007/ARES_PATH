@@ -1,0 +1,19 @@
+{
+  "targets": [
+    {
+      "target_id": "jezero_depositional_fan_context",
+      "name": "Jezero depositional fan context",
+      "region_id": "jezero_fan_256",
+      "position": null,
+      "coordinate_status": "contextual_only",
+      "is_navigable": false,
+      "mission": "Mars Reconnaissance Orbiter",
+      "instrument": "HiRISE",
+      "source_url": "https://www.uahirise.org/dtm/PSP_002387_1985",
+      "source_ids": [
+        "DTEEC_002387_1985_003798_1985_A01"
+      ],
+      "description": "Documented HiRISE DTM footprint used as regional context; no verified navigation target coordinate is asserted."
+    }
+  ]
+}
