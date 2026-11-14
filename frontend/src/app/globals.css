@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* Visual language is intentionally undecided. Feature styles belong to the
+   feature or shared component that owns them after product approval. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
