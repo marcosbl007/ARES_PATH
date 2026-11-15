@@ -1,7 +1,7 @@
 # ARES PATH — Frontend
 
-Frontend foundation for the ARES PATH research prototype. The visual identity,
-layout and product screens are intentionally not defined yet.
+Frontend application for the ARES PATH research prototype. The current screen
+keeps the existing console shell while consuming the real FastAPI contracts.
 
 ## Stack
 
@@ -31,6 +31,28 @@ pnpm test:e2e
 
 Copy `.env.example` to `.env.local` and set the FastAPI URL when the backend
 is available. Do not commit `.env.local` or credentials.
+
+## Backend integration
+
+Run FastAPI from `backend/`:
+
+```bash
+source .venv/Scripts/activate
+python -m uvicorn app.main:app --reload
+```
+
+Then run this app from `frontend/`:
+
+```bash
+pnpm dev
+```
+
+The frontend now loads health, system info, regions, raster metadata, layers
+and scientific-target entries. Mission setup sends one validated
+`POST /api/missions/plan` request and renders the returned routes, comparison,
+elevation profile, sources and limitations. The map is currently an explicit
+grid-coordinate preview: the backend exposes raster metadata but not raster
+image bytes or map tiles yet, so it does not claim to be a georeferenced image.
 
 ## Structure
 

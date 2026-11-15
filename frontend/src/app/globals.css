@@ -505,6 +505,13 @@ input:focus-visible {
   color: var(--blue);
 }
 
+.map-layer-dock__empty {
+  padding: 6px 7px;
+  color: var(--faint);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
 .layer-chip {
   display: flex;
   align-items: center;
@@ -1000,6 +1007,21 @@ input:focus-visible {
   font-size: 10px;
 }
 
+.field-select {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 10px;
+}
+
+.field-select option {
+  background: var(--ink-1);
+  color: var(--text);
+}
+
 .field-shell .field-status {
   color: var(--amber);
 }
@@ -1089,6 +1111,79 @@ input:focus-visible {
   color: var(--text);
 }
 
+.coordinate-editor {
+  padding: 9px;
+  border: 1px solid var(--line);
+  background: var(--ink-0);
+  box-shadow: var(--sunken-shadow);
+}
+
+.coordinate-editor__label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--blue);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.coordinate-editor__fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.coordinate-editor__fields label,
+.criteria-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.coordinate-editor__fields input,
+.criteria-input-row input {
+  min-width: 0;
+  width: 74px;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  background: var(--ink-1);
+  color: var(--text);
+  font-size: 9px;
+  outline: 0;
+}
+
+.coordinate-editor__fields input:focus,
+.criteria-input-row input:focus {
+  border-color: var(--blue);
+  box-shadow: var(--sunken-shadow);
+}
+
+.coordinate-summary {
+  display: grid;
+  gap: 5px;
+  margin-top: 7px;
+  color: var(--faint);
+  font-size: 8px;
+}
+
+.coordinate-summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.coordinate-summary svg:first-child {
+  color: var(--blue);
+}
+
+.coordinate-summary span:last-child svg {
+  color: var(--amber);
+}
+
 .setup-divider {
   height: 1px;
   margin: 16px 0 0;
@@ -1108,6 +1203,65 @@ input:focus-visible {
 .criteria-row strong {
   color: var(--text);
   font-size: 9px;
+}
+
+.criteria-input-row {
+  min-height: 34px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  text-transform: none;
+}
+
+.criteria-input-row label {
+  color: var(--muted);
+}
+
+.target-list {
+  display: grid;
+  gap: 6px;
+}
+
+.target-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  background: var(--ink-0);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.target-option input {
+  margin-top: 2px;
+  accent-color: var(--blue);
+}
+
+.target-option span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.target-option strong {
+  color: var(--text);
+  font-size: 8px;
+}
+
+.target-option small {
+  color: var(--faint);
+  font-size: 7px;
+}
+
+.form-error {
+  margin: 12px 0 0;
+  padding: 8px;
+  border: 1px solid rgba(252, 61, 33, 0.35);
+  background: rgba(84, 24, 16, 0.28);
+  color: #ff9d8c;
+  font-size: 8px;
+  line-height: 1.45;
 }
 
 .primary-action {
@@ -1177,6 +1331,79 @@ input:focus-visible {
 
 .route-card p {
   margin-top: 9px;
+}
+
+.route-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.route-metrics span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(3, 7, 13, 0.42);
+}
+
+.route-metrics small {
+  color: var(--faint);
+  font-size: 7px;
+  text-transform: uppercase;
+}
+
+.route-metrics strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-data {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-data__summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--faint);
+  font-size: 7px;
+  text-transform: uppercase;
+}
+
+.profile-bars {
+  display: flex;
+  height: 82px;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  background: var(--ink-0);
+  box-shadow: var(--sunken-shadow);
+}
+
+.profile-bars span {
+  min-width: 2px;
+  flex: 1;
+  background: var(--blue);
+  opacity: 0.78;
+}
+
+.limitation-list {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-left: 14px;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
 }
 
 .route-swatch {

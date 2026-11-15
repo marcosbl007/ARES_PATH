@@ -15,6 +15,8 @@ import {
 import { IconButton } from "@/components/atoms/icon-button";
 import { StatusDot } from "@/components/atoms/status-dot";
 import { LayerChip } from "@/components/molecules/layer-chip";
+import type { MissionResponse, RegionMetadata } from "@/shared/types/api-contract";
+import { gridPathToSvgPath, gridPointToSvg } from "@/features/mars-map/utils/grid-path";
 
 export type MapLayerId = "elevation" | "optical" | "slope" | "thermal";
 
@@ -28,6 +30,9 @@ export type MapLayer = {
 type MapViewportProps = {
   layers: MapLayer[];
   zoomLevel: number;
+  regionId: string;
+  metadata: RegionMetadata | null;
+  mission: MissionResponse | null;
   onToggleLayer: (layerId: MapLayerId) => void;
   onZoomChange: (nextZoom: number) => void;
   onResetView: () => void;
@@ -41,18 +46,37 @@ const contourLines = [
   "M 90 280 C 215 220, 330 290, 480 220 S 710 135, 930 180",
 ];
 
+const viewport = { width: 1000, height: 700, padding: 44 } as const;
+
+function pointLabel(point: { row: number; col: number } | undefined, label: string) {
+  return point ? `${label} / R${point.row} C${point.col}` : `${label} / NOT SET`;
+}
+function routeForMode(mission: MissionResponse | null, mode: "shortest" | "terrain_aware") {
+  return mission?.routes.find((route) => route.mode === mode);
+}
+
 export function MapViewport({
   layers,
   zoomLevel,
+  regionId,
+  metadata,
+  mission,
   onToggleLayer,
   onZoomChange,
   onResetView,
 }: MapViewportProps) {
+  const shortest = routeForMode(mission, "shortest");
+  const terrainAware = routeForMode(mission, "terrain_aware");
+  const start = shortest?.grid_path[0] ?? terrainAware?.grid_path[0];
+  const destination = shortest?.grid_path.at(-1) ?? terrainAware?.grid_path.at(-1);
+  const startCoordinate = start ? gridPointToSvg(start, metadata?.shape, viewport) : null;
+  const destinationCoordinate = destination ? gridPointToSvg(destination, metadata?.shape, viewport) : null;
+
   return (
-    <section className="map-stage" aria-label="Mars map viewport">
+    <section className="map-stage" aria-label="Mars grid route viewport">
       <div className="map-stage__axis map-stage__axis--top" aria-hidden="true">
-        <span>GRID / JEZERO / PROVISIONAL</span>
-        <span>CRS: PENDING BACKEND METADATA</span>
+        <span>GRID / {regionId || "NO REGION"}</span>
+        <span>CRS: {metadata ? "LOADED" : "PENDING"}</span>
       </div>
 
       <div className="map-stage__body">
@@ -66,8 +90,8 @@ export function MapViewport({
         <div className="map-canvas">
           <div className="map-canvas__vignette" aria-hidden="true" />
           <div className="map-canvas__demo-label">
-            <StatusDot tone="demo" />
-            SYNTHETIC SURFACE / UI PREVIEW
+            <StatusDot tone={mission ? "blue" : "demo"} />
+            {mission ? "GRID ROUTES / API RESPONSE" : "GRID PREVIEW / RASTER IMAGE NOT SERVED"}
           </div>
 
           <div className="map-layer-dock" aria-label="Map layers">
@@ -75,7 +99,7 @@ export function MapViewport({
               <Layers size={14} aria-hidden="true" />
               <span>Layers</span>
             </div>
-            {layers.map((layer) => (
+            {layers.length > 0 ? layers.map((layer) => (
               <LayerChip
                 key={layer.id}
                 label={layer.label}
@@ -83,7 +107,7 @@ export function MapViewport({
                 active={layer.active}
                 onToggle={() => onToggleLayer(layer.id)}
               />
-            ))}
+            )) : <span className="map-layer-dock__empty">Metadata pending</span>}
           </div>
 
           <div className="map-controls" aria-label="Map controls">
@@ -97,7 +121,7 @@ export function MapViewport({
           </div>
 
           <div className="map-graphic" style={{ transform: `scale(${1 + (zoomLevel - 1) * 0.045})` }}>
-            <svg viewBox="0 0 1000 700" role="img" aria-label="Synthetic terrain illustration for layout preview">
+            <svg viewBox="0 0 1000 700" role="img" aria-label="Grid preview with routes returned by the backend">
               <defs>
                 <pattern id="map-grid" width="54" height="54" patternUnits="userSpaceOnUse">
                   <path d="M 54 0 L 0 0 0 54" fill="none" stroke="rgba(92, 180, 255, .13)" strokeWidth="1" />
@@ -108,49 +132,40 @@ export function MapViewport({
                   <stop offset="0.52" stopColor="#0a111d" />
                   <stop offset="1" stopColor="#1c160e" />
                 </linearGradient>
-                <linearGradient id="route-fill" x1="0" x2="1">
-                  <stop offset="0" stopColor="#38bdf8" stopOpacity=".1" />
-                  <stop offset="1" stopColor="#ffb703" stopOpacity=".05" />
-                </linearGradient>
               </defs>
               <rect width="1000" height="700" fill="url(#map-ground)" />
               <rect width="1000" height="700" fill="url(#map-grid)" />
-              <g className="map-contours" fill="none">
-                {contourLines.map((path, index) => (
-                  <path d={path} key={path} opacity={0.22 + index * 0.06} />
-                ))}
+              <g className="map-contours" fill="none" aria-hidden="true">
+                {contourLines.map((path, index) => <path d={path} key={path} opacity={0.22 + index * 0.06} />)}
               </g>
-              <path className="map-route map-route--direct" d="M 145 545 L 805 172" />
-              <path className="map-route map-route--adaptive" d="M 145 545 C 250 555, 260 455, 390 455 S 545 360, 625 340 S 745 230, 805 172" />
-              <path className="map-route__fill" d="M 145 545 C 250 555, 260 455, 390 455 S 545 360, 625 340 S 745 230, 805 172 L 805 700 L 145 700 Z" fill="url(#route-fill)" />
-              <circle className="map-point map-point--start" cx="145" cy="545" r="9" />
-              <circle className="map-point map-point--goal" cx="805" cy="172" r="9" />
-              <circle className="map-point__core" cx="145" cy="545" r="3" />
-              <circle className="map-point__core map-point__core--goal" cx="805" cy="172" r="3" />
+              {shortest ? <path className="map-route map-route--direct" d={gridPathToSvgPath(shortest.grid_path, metadata?.shape, viewport)} /> : null}
+              {terrainAware ? <path className="map-route map-route--adaptive" d={gridPathToSvgPath(terrainAware.grid_path, metadata?.shape, viewport)} /> : null}
+              {startCoordinate ? <><circle className="map-point map-point--start" cx={startCoordinate.x} cy={startCoordinate.y} r="9" /><circle className="map-point__core" cx={startCoordinate.x} cy={startCoordinate.y} r="3" /></> : null}
+              {destinationCoordinate ? <><circle className="map-point map-point--goal" cx={destinationCoordinate.x} cy={destinationCoordinate.y} r="9" /><circle className="map-point__core map-point__core--goal" cx={destinationCoordinate.x} cy={destinationCoordinate.y} r="3" /></> : null}
             </svg>
           </div>
 
           <div className="map-marker map-marker--start">
             <MapPin size={14} aria-hidden="true" />
-            <span>ORIGIN / PENDING</span>
+            <span>{pointLabel(start, "ORIGIN")}</span>
           </div>
           <div className="map-marker map-marker--goal">
             <MapPin size={14} aria-hidden="true" />
-            <span>DESTINATION / PENDING</span>
+            <span>{pointLabel(destination, "DESTINATION")}</span>
           </div>
 
           <div className="map-legend" aria-label="Map legend">
-            <span><i className="legend-line legend-line--adaptive" /> Adaptive route</span>
-            <span><i className="legend-line legend-line--direct" /> Shortest route</span>
-            <span><i className="legend-dot legend-dot--demo" /> Synthetic only</span>
+            <span><i className="legend-line legend-line--adaptive" /> Terrain-aware</span>
+            <span><i className="legend-line legend-line--direct" /> Shortest</span>
+            <span><i className="legend-dot legend-dot--demo" /> Grid preview</span>
           </div>
         </div>
       </div>
 
       <div className="map-stage__footer">
-        <span><Route size={12} aria-hidden="true" /> Routes render from backend response</span>
+        <span><Route size={12} aria-hidden="true" /> {mission ? `${mission.routes.length} routes from backend` : "No route response"}</span>
         <span>ZOOM {zoomLevel} / 5</span>
-        <span>COORDINATES: UNAVAILABLE</span>
+        <span>COORDINATES: GRID ROW/COL</span>
       </div>
     </section>
   );
