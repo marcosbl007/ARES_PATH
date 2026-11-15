@@ -2,7 +2,6 @@
 
 import {
   Compass,
-  Grid2X2,
   Layers,
   MapPin,
   Minus,
@@ -15,17 +14,10 @@ import {
 import { IconButton } from "@/components/atoms/icon-button";
 import { StatusDot } from "@/components/atoms/status-dot";
 import { LayerChip } from "@/components/molecules/layer-chip";
+import { RasterTileLayer } from "@/features/mars-map/components/raster-tile-layer";
+import type { MapLayer, MapLayerId } from "@/features/mars-map/types";
 import type { MissionResponse, RegionMetadata } from "@/shared/types/api-contract";
 import { gridPathToSvgPath, gridPointToSvg } from "@/features/mars-map/utils/grid-path";
-
-export type MapLayerId = "elevation" | "optical" | "slope" | "thermal";
-
-export type MapLayer = {
-  id: MapLayerId;
-  label: string;
-  color: string;
-  active: boolean;
-};
 
 type MapViewportProps = {
   layers: MapLayer[];
@@ -38,21 +30,22 @@ type MapViewportProps = {
   onResetView: () => void;
 };
 
-const contourLines = [
-  "M 40 520 C 150 410, 230 535, 360 430 S 620 340, 960 420",
-  "M 30 470 C 170 360, 275 470, 390 380 S 640 285, 990 365",
-  "M 45 410 C 150 325, 270 420, 420 330 S 650 230, 970 305",
-  "M 65 345 C 185 270, 290 350, 450 270 S 680 180, 950 240",
-  "M 90 280 C 215 220, 330 290, 480 220 S 710 135, 930 180",
-];
-
-const viewport = { width: 1000, height: 700, padding: 44 } as const;
+const viewport = { width: 1000, height: 1000, padding: 0 } as const;
 
 function pointLabel(point: { row: number; col: number } | undefined, label: string) {
   return point ? `${label} / R${point.row} C${point.col}` : `${label} / NOT SET`;
 }
+
 function routeForMode(mission: MissionResponse | null, mode: "shortest" | "terrain_aware") {
   return mission?.routes.find((route) => route.mode === mode);
+}
+
+function rowAxisLabels(metadata: RegionMetadata | null) {
+  if (!metadata) return ["ROW / PENDING"];
+
+  const lastRow = metadata.shape[0] - 1;
+  const middleRow = Math.floor(lastRow / 2);
+  return [`ROW ${lastRow}`, `ROW ${middleRow}`, "ROW 0"];
 }
 
 export function MapViewport({
@@ -71,27 +64,25 @@ export function MapViewport({
   const destination = shortest?.grid_path.at(-1) ?? terrainAware?.grid_path.at(-1);
   const startCoordinate = start ? gridPointToSvg(start, metadata?.shape, viewport) : null;
   const destinationCoordinate = destination ? gridPointToSvg(destination, metadata?.shape, viewport) : null;
+  const activeLayers = layers.filter((layer) => layer.active);
 
   return (
-    <section className="map-stage" aria-label="Mars grid route viewport">
+    <section className="map-stage" aria-label="Mars native raster viewport">
       <div className="map-stage__axis map-stage__axis--top" aria-hidden="true">
-        <span>GRID / {regionId || "NO REGION"}</span>
-        <span>CRS: {metadata ? "LOADED" : "PENDING"}</span>
+        <span>RASTER / {regionId || "NO REGION"}</span>
+        <span>{metadata ? "CRS: NATIVE MARS" : "CRS: PENDING"}</span>
       </div>
 
       <div className="map-stage__body">
         <div className="map-stage__axis map-stage__axis--left" aria-hidden="true">
-          <span>R04</span>
-          <span>R03</span>
-          <span>R02</span>
-          <span>R01</span>
+          {rowAxisLabels(metadata).map((label) => <span key={label}>{label}</span>)}
         </div>
 
         <div className="map-canvas">
           <div className="map-canvas__vignette" aria-hidden="true" />
           <div className="map-canvas__demo-label">
-            <StatusDot tone={mission ? "blue" : "demo"} />
-            {mission ? "GRID ROUTES / API RESPONSE" : "GRID PREVIEW / RASTER IMAGE NOT SERVED"}
+            <StatusDot tone={metadata ? "blue" : "demo"} />
+            {metadata ? "NATIVE RASTER / API RESPONSE" : "RASTER / METADATA PENDING"}
           </div>
 
           <div className="map-layer-dock" aria-label="Map layers">
@@ -107,7 +98,7 @@ export function MapViewport({
                 active={layer.active}
                 onToggle={() => onToggleLayer(layer.id)}
               />
-            )) : <span className="map-layer-dock__empty">Metadata pending</span>}
+            )) : <span className="map-layer-dock__empty">Raster metadata pending</span>}
           </div>
 
           <div className="map-controls" aria-label="Map controls">
@@ -116,33 +107,32 @@ export function MapViewport({
             <span className="map-controls__divider" />
             <IconButton label="Reset view" icon={RotateCcw} size="sm" onClick={onResetView} />
             <IconButton label="Compass" icon={Compass} size="sm" />
-            <IconButton label="Toggle grid" icon={Grid2X2} size="sm" />
             <IconButton label="Measure distance" icon={Ruler} size="sm" />
           </div>
 
           <div className="map-graphic" style={{ transform: `scale(${1 + (zoomLevel - 1) * 0.045})` }}>
-            <svg viewBox="0 0 1000 700" role="img" aria-label="Grid preview with routes returned by the backend">
-              <defs>
-                <pattern id="map-grid" width="54" height="54" patternUnits="userSpaceOnUse">
-                  <path d="M 54 0 L 0 0 0 54" fill="none" stroke="rgba(92, 180, 255, .13)" strokeWidth="1" />
-                  <circle cx="0" cy="0" r="2" fill="rgba(255, 183, 3, .35)" />
-                </pattern>
-                <linearGradient id="map-ground" x1="0" x2="1" y1="0" y2="1">
-                  <stop offset="0" stopColor="#111b2b" />
-                  <stop offset="0.52" stopColor="#0a111d" />
-                  <stop offset="1" stopColor="#1c160e" />
-                </linearGradient>
-              </defs>
-              <rect width="1000" height="700" fill="url(#map-ground)" />
-              <rect width="1000" height="700" fill="url(#map-grid)" />
-              <g className="map-contours" fill="none" aria-hidden="true">
-                {contourLines.map((path, index) => <path d={path} key={path} opacity={0.22 + index * 0.06} />)}
-              </g>
-              {shortest ? <path className="map-route map-route--direct" d={gridPathToSvgPath(shortest.grid_path, metadata?.shape, viewport)} /> : null}
-              {terrainAware ? <path className="map-route map-route--adaptive" d={gridPathToSvgPath(terrainAware.grid_path, metadata?.shape, viewport)} /> : null}
-              {startCoordinate ? <><circle className="map-point map-point--start" cx={startCoordinate.x} cy={startCoordinate.y} r="9" /><circle className="map-point__core" cx={startCoordinate.x} cy={startCoordinate.y} r="3" /></> : null}
-              {destinationCoordinate ? <><circle className="map-point map-point--goal" cx={destinationCoordinate.x} cy={destinationCoordinate.y} r="9" /><circle className="map-point__core map-point__core--goal" cx={destinationCoordinate.x} cy={destinationCoordinate.y} r="3" /></> : null}
-            </svg>
+            <div className="map-surface">
+              <div className="map-raster-stack" aria-label="Backend raster layers">
+                {activeLayers.length > 0
+                  ? activeLayers.map((layer) => (
+                    <RasterTileLayer key={layer.id} layer={layer} zoomLevel={zoomLevel} />
+                  ))
+                  : <div className="map-raster-empty">SELECT A RASTER LAYER</div>}
+              </div>
+
+              <svg
+                className="map-route-overlay"
+                viewBox="0 0 1000 1000"
+                preserveAspectRatio="none"
+                role="img"
+                aria-label="Routes returned by the backend over the native raster"
+              >
+                {shortest ? <path className="map-route map-route--direct" d={gridPathToSvgPath(shortest.grid_path, metadata?.shape, viewport)} /> : null}
+                {terrainAware ? <path className="map-route map-route--adaptive" d={gridPathToSvgPath(terrainAware.grid_path, metadata?.shape, viewport)} /> : null}
+                {startCoordinate ? <><circle className="map-point map-point--start" cx={startCoordinate.x} cy={startCoordinate.y} r="9" /><circle className="map-point__core" cx={startCoordinate.x} cy={startCoordinate.y} r="3" /></> : null}
+                {destinationCoordinate ? <><circle className="map-point map-point--goal" cx={destinationCoordinate.x} cy={destinationCoordinate.y} r="9" /><circle className="map-point__core map-point__core--goal" cx={destinationCoordinate.x} cy={destinationCoordinate.y} r="3" /></> : null}
+              </svg>
+            </div>
           </div>
 
           <div className="map-marker map-marker--start">
@@ -155,9 +145,9 @@ export function MapViewport({
           </div>
 
           <div className="map-legend" aria-label="Map legend">
-            <span><i className="legend-line legend-line--adaptive" /> Terrain-aware</span>
-            <span><i className="legend-line legend-line--direct" /> Shortest</span>
-            <span><i className="legend-dot legend-dot--demo" /> Grid preview</span>
+            {terrainAware ? <span><i className="legend-line legend-line--adaptive" /> Terrain-aware</span> : null}
+            {shortest ? <span><i className="legend-line legend-line--direct" /> Shortest</span> : null}
+            <span><i className="legend-dot legend-dot--raster" /> Native raster</span>
           </div>
         </div>
       </div>

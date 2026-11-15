@@ -6,7 +6,8 @@ import { StatusDot } from "@/components/atoms/status-dot";
 import { AppTopbar } from "@/components/organisms/app-topbar";
 import { BrandLoadingScreen } from "@/components/organisms/brand-loading-screen";
 import { WorkspaceRail } from "@/components/organisms/workspace-rail";
-import { MapViewport, type MapLayer, type MapLayerId } from "@/features/mars-map/components/map-viewport";
+import { MapViewport } from "@/features/mars-map/components/map-viewport";
+import type { MapLayer, MapLayerId } from "@/features/mars-map/types";
 import { MissionSetupPanel, type PointDraft } from "@/features/mission-planning/components/mission-setup-panel";
 import { useMissionPlanning } from "@/features/mission-planning/hooks/use-mission-planning";
 import { RouteAnalysisPanel } from "@/features/route-analysis/components/route-analysis-panel";
@@ -35,6 +36,11 @@ function mapLayerId(layerId: string): MapLayerId | null {
   if (layerId === "elevation") return "elevation";
   if (layerId === "orthoimage") return "optical";
   return null;
+}
+
+function mapBoundsTuple(bounds: number[] | undefined): [number, number, number, number] | undefined {
+  if (!bounds || bounds.length !== 4) return undefined;
+  return [bounds[0], bounds[1], bounds[2], bounds[3]];
 }
 
 export default function Home() {
@@ -92,9 +98,16 @@ export default function Home() {
       if (!id) return [];
       return [{
         id,
-        label: `${id === "optical" ? "Optical" : "Elevation"} / metadata`,
+        label: `${id === "optical" ? "Optical" : "Elevation"} / native tiles`,
         color: layerColors[layer.layer_id] ?? "#a7f3d0",
         active: activeLayerIds.includes(id),
+        tileUrlTemplate: layer.tile_url_template,
+        tileScheme: layer.tile_scheme,
+        tileSize: layer.tile_size,
+        minZoom: layer.min_zoom,
+        maxZoom: layer.max_zoom,
+        shape: layer.shape,
+        mapBounds: mapBoundsTuple(layer.map_bounds),
       }];
     }),
     [activeLayerIds, planning.layers],

@@ -1,4 +1,5 @@
 import { getJson } from "@/shared/api/http-client";
+import { API_BASE_URL } from "@/shared/config/runtime";
 import {
   LayerSchema,
   RegionMetadataSchema,
@@ -8,6 +9,24 @@ import {
 
 const RegionListSchema = RegionMetadataSchema.array();
 const LayerListSchema = LayerSchema.array();
+
+export function resolveApiResourceUrl(resourcePath: string): string {
+  return new URL(resourcePath, `${API_BASE_URL}/`).toString();
+}
+
+export function getRasterTileUrl(
+  tileUrlTemplate: string,
+  zoom: number,
+  column: number,
+  row: number,
+): string {
+  const path = tileUrlTemplate
+    .replace("{z}", String(zoom))
+    .replace("{x}", String(column))
+    .replace("{y}", String(row));
+
+  return resolveApiResourceUrl(path);
+}
 
 export function getRegions(signal?: AbortSignal): Promise<RegionMetadata[]> {
   return getJson("/api/data/regions", RegionListSchema, signal);

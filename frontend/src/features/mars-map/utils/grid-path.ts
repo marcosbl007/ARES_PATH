@@ -14,12 +14,12 @@ export function gridPointToSvg(
   if (!shape || shape[0] < 1 || shape[1] < 1) return null;
 
   const padding = viewport.padding ?? 44;
-  const rows = Math.max(shape[0] - 1, 1);
-  const columns = Math.max(shape[1] - 1, 1);
+  const rows = shape[0];
+  const columns = shape[1];
 
   return {
-    x: padding + (point.col / columns) * (viewport.width - padding * 2),
-    y: padding + (point.row / rows) * (viewport.height - padding * 2),
+    x: padding + ((point.col + 0.5) / columns) * (viewport.width - padding * 2),
+    y: padding + ((point.row + 0.5) / rows) * (viewport.height - padding * 2),
   };
 }
 

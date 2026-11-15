@@ -47,12 +47,14 @@ Then run this app from `frontend/`:
 pnpm dev
 ```
 
-The frontend now loads health, system info, regions, raster metadata, layers
-and scientific-target entries. Mission setup sends one validated
-`POST /api/missions/plan` request and renders the returned routes, comparison,
-elevation profile, sources and limitations. The map is currently an explicit
-grid-coordinate preview: the backend exposes raster metadata but not raster
-image bytes or map tiles yet, so it does not claim to be a georeferenced image.
+The frontend loads health, system info, regions, raster metadata, native raster
+tile descriptors and scientific-target entries. The map renders the backend's
+display-only PNG tile matrix (`local_native_xyz`) instead of synthetic contour
+lines; routes remain an SVG overlay using the backend's `grid_row_col` contract.
+Mission setup sends one validated `POST /api/missions/plan` request and renders
+the returned routes, comparison, elevation profile, sources and limitations.
+The raw GeoTIFF endpoint remains available for downloads/analysis and is not
+used as a numeric source in the browser.
 
 ## Structure
 

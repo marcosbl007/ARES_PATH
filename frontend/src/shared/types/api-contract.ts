@@ -129,6 +129,19 @@ export const LayerSchema = z
     source_ids: z.array(z.string()),
     used_for_routing: z.boolean(),
     alignment_status: z.string().optional(),
+    shape: z.tuple([z.number().int().positive(), z.number().int().positive()]).optional(),
+    transform: z.array(finiteNumber).length(6).optional(),
+    crs_wkt: z.string().min(1).optional(),
+    map_bounds: z.array(finiteNumber).length(4).optional(),
+    coordinate_system: z.string().min(1).optional(),
+    metadata_url: z.string().min(1).optional(),
+    raster_url: z.string().min(1).optional(),
+    preview_url: z.string().min(1).optional(),
+    tile_url_template: z.string().min(1).optional(),
+    tile_scheme: z.string().min(1).optional(),
+    tile_size: z.number().int().positive().optional(),
+    min_zoom: z.number().int().nonnegative().optional(),
+    max_zoom: z.number().int().nonnegative().optional(),
   })
   .passthrough();
 
