@@ -6,6 +6,7 @@ import pytest
 import rasterio
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from rasterio.io import MemoryFile
 from rasterio.transform import from_origin
 from rasterio.windows import Window
 
@@ -13,6 +14,7 @@ from app.nasa_data.loader import load_elevation_data
 from app.nasa_data.processor import process_elevation_data
 from app.nasa_data.processor import process_orthoimage, create_alignment_preview
 from app.nasa_data.repository import RegionRepository, create_router
+from app.nasa_data.raster_service import tile_bounds
 
 MARS = rasterio.crs.CRS.from_string(
     '+proj=eqc +lat_ts=15 +lon_0=77.41 +R=3394839.8133163 +units=m +no_defs'
@@ -71,6 +73,15 @@ def test_roundtrip_and_api(synthetic):
     assert client.get('/api/data/regions/missing').status_code == 404
     with pytest.raises(FileExistsError):
         process_elevation_data(path, 'synthetic_crop', 'synthetic', Window(1, 1, 3, 3), root)
+
+
+def test_grid_center_roundtrip_covers_edges_and_center(synthetic):
+    path, root = synthetic
+    process_elevation_data(path, 'synthetic_crop', 'synthetic', Window(1, 1, 3, 3), root)
+    region = RegionRepository(root).get_region('synthetic_crop')
+
+    for row, col in ((0, 0), (0, 2), (1, 1), (2, 0), (2, 2)):
+        assert region.map_to_cell(*region.cell_center(row, col)) == (row, col)
 
 
 def test_missing(tmp_path):
@@ -192,6 +203,59 @@ def test_ortho_alignment_mask_and_layers(synthetic_ortho):
     assert create_alignment_preview('synthetic',root).is_file()
     with pytest.raises(FileExistsError):
         process_orthoimage(ortho,label,'synthetic','synthetic_ortho',root)
+
+
+def test_raster_bytes_previews_tiles_and_mars_trek_catalog(synthetic_ortho):
+    root, ortho, label = synthetic_ortho
+    process_orthoimage(ortho, label, 'synthetic', 'synthetic_ortho', root)
+    repo = RegionRepository(root)
+    app = FastAPI()
+    app.include_router(create_router(repo), prefix='/api')
+    client = TestClient(app)
+
+    raw = client.get('/api/data/regions/synthetic/layers/elevation/raster')
+    assert raw.status_code == 200
+    assert raw.headers['content-type'].startswith('image/tiff')
+    with MemoryFile(raw.content) as memory:
+        with memory.open() as source:
+            assert source.shape == (5, 5)
+            assert source.read(1)[4, 4] == 24
+
+    metadata = client.get('/api/data/regions/synthetic/layers/orthoimage/metadata')
+    assert metadata.status_code == 200
+    metadata_payload = metadata.json()
+    assert metadata_payload['coordinate_system'] == 'native_projected_mars'
+    assert metadata_payload['shape'] == [5, 5]
+    assert metadata_payload['tile_scheme'] == 'local_native_xyz'
+    assert metadata_payload['raster_url'].endswith('/orthoimage/raster')
+
+    preview = client.get('/api/data/regions/synthetic/layers/orthoimage/preview.png')
+    tile = client.get('/api/data/regions/synthetic/layers/elevation/tiles/0/0/0.png')
+    assert preview.status_code == 200
+    assert tile.status_code == 200
+    assert preview.headers['content-type'].startswith('image/png')
+    assert tile.headers['content-type'].startswith('image/png')
+    assert preview.content.startswith(b'\x89PNG\r\n\x1a\n')
+    assert tile.content.startswith(b'\x89PNG\r\n\x1a\n')
+    assert tile.headers['x-ares-coordinate-system'] == 'native_projected_mars'
+
+    invalid_tile = client.get('/api/data/regions/synthetic/layers/elevation/tiles/0/1/0.png')
+    assert invalid_tile.status_code == 422
+    assert invalid_tile.json()['detail']['code'] == 'INVALID_TILE'
+
+    mars_trek = client.get('/api/data/mars-trek/layers')
+    assert mars_trek.status_code == 200
+    mars_trek_payload = mars_trek.json()
+    assert {layer['instrument'] for layer in mars_trek_payload} == {'CTX', 'HiRISE'}
+    assert all(layer['format'] == 'image/png' for layer in mars_trek_payload)
+
+
+def test_local_tile_matrix_preserves_native_bounds():
+    bounds = (100.0, 190.0, 110.0, 200.0)
+    assert tile_bounds(bounds, 0, 0, 0).as_tuple() == bounds
+    assert tile_bounds(bounds, 1, 1, 0).as_tuple() == (105.0, 195.0, 110.0, 200.0)
+    with pytest.raises(ValueError):
+        tile_bounds(bounds, 1, 2, 0)
 
 
 @pytest.mark.parametrize('old,new', [('CENTER_LONGITUDE = 77.41','CENTER_LONGITUDE = 0'),

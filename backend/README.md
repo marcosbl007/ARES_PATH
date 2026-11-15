@@ -27,6 +27,11 @@ with the comma-separated `ARES_CORS_ORIGINS` variable.
 - `GET /api/data/regions`
 - `GET /api/data/regions/{region_id}`
 - `GET /api/data/regions/{region_id}/layers`
+- `GET /api/data/mars-trek/layers`
+- `GET /api/data/regions/{region_id}/layers/{layer_id}/metadata`
+- `GET /api/data/regions/{region_id}/layers/{layer_id}/raster`
+- `GET /api/data/regions/{region_id}/layers/{layer_id}/preview.png`
+- `GET /api/data/regions/{region_id}/layers/{layer_id}/tiles/{zoom}/{column}/{row}.png`
 - `GET /api/missions/scientific-targets?region_id=...`
 - `POST /api/missions/plan`
 - `GET /api/terrain/{region_id}/summary`
@@ -34,6 +39,30 @@ with the comma-separated `ARES_CORS_ORIGINS` variable.
 - `POST /api/terrain/traversability`
 - `POST /api/routes/calculate`
 - `POST /api/routes/compare`
+
+Raster assets are exposed without turning them into JSON. The `raster` route
+returns the processed GeoTIFF bytes, preserving the numeric DTM values and
+georeferencing. `preview.png` and `tiles/...png` are display-only RGBA
+renderings; they must not be used for terrain calculations. Local tiles use an
+AOI-local XYZ matrix in the native projected Mars CRS: zoom `0` covers the
+whole 256 x 256 region, and higher zooms subdivide that same extent. This is
+not EPSG:3857 and is separate from the global Mars Trek WMTS matrix.
+
+The Mars Trek endpoint returns the two verified Jezero visual WMTS descriptors
+(CTX and HiRISE), including capabilities URLs and the explicit warning that
+their CRS/alignment must be validated before overlaying the local DTM.
+
+Example raster requests from `backend/`:
+
+```powershell
+Invoke-WebRequest `
+  -Uri http://127.0.0.1:8000/api/data/regions/jezero_fan_256/layers/orthoimage/preview.png `
+  -OutFile .\tmp\jezero-ortho-preview.png
+
+Invoke-WebRequest `
+  -Uri http://127.0.0.1:8000/api/data/regions/jezero_fan_256/layers/elevation/raster `
+  -OutFile .\tmp\jezero-elevation.tif
+```
 
 ## Mission example
 

@@ -10,6 +10,10 @@ import Image from "next/image";
 
 import { NavItem } from "@/components/molecules/nav-item";
 
+type AppTopbarProps = {
+  apiStatus: "loading" | "online" | "error";
+};
+
 const navigationItems = [
   { label: "Traverse", icon: MapIcon, active: true },
   { label: "Parameters", icon: SlidersHorizontal, active: false },
@@ -17,7 +21,9 @@ const navigationItems = [
   { label: "Offline", icon: CloudDownload, active: false },
 ];
 
-export function AppTopbar() {
+export function AppTopbar({ apiStatus }: AppTopbarProps) {
+  const apiLabel = apiStatus === "online" ? "API / ONLINE" : apiStatus === "error" ? "API / ERROR" : "API / CONNECTING";
+
   return (
     <header className="topbar">
       <div className="topbar__identity">
@@ -45,7 +51,7 @@ export function AppTopbar() {
 
       <div className="topbar__actions">
         <span className="relay-status">
-          <Cloud size={13} aria-hidden="true" /> API / PENDING
+          <Cloud size={13} aria-hidden="true" /> {apiLabel}
         </span>
         <button className="toolbar-button" type="button" disabled title="Available after a mission is saved">
           <Download size={13} aria-hidden="true" /> Export pack

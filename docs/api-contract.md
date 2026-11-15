@@ -46,11 +46,22 @@ the local documented catalog. Contextual entries may have `position: null` and
 
 - P1 metadata: `GET /api/data/regions`, `GET /api/data/regions/{region_id}`,
   `GET /api/data/regions/{region_id}/layers`.
+- Raster assets: `GET /api/data/regions/{region_id}/layers/{layer_id}/metadata`,
+  `GET /api/data/regions/{region_id}/layers/{layer_id}/raster`,
+  `GET /api/data/regions/{region_id}/layers/{layer_id}/preview.png` and
+  `GET /api/data/regions/{region_id}/layers/{layer_id}/tiles/{zoom}/{column}/{row}.png`.
+- Mars Trek descriptors: `GET /api/data/mars-trek/layers`.
 - P2 summaries/profiles: `GET /api/terrain/{region_id}/summary`,
   `POST /api/terrain/elevation-profile`, `POST /api/terrain/traversability`.
 - P3 routes: `POST /api/routes/calculate`, `POST /api/routes/compare`.
 
 These endpoints return compact JSON and never transfer a complete raster.
+
+The `raster` endpoint is the exception by design: it returns the original
+processed GeoTIFF bytes with its numeric values and georeferencing. PNG
+previews and local tiles are display-only renderings. Their tile matrix is
+`local_native_xyz` in the source raster's projected Mars CRS; it is not
+EPSG:3857 and must not be treated as the Mars Trek WMTS matrix.
 
 ## Error envelope
 

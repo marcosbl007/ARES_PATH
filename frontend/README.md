@@ -1,7 +1,7 @@
 # ARES PATH — Frontend
 
-Frontend foundation for the ARES PATH research prototype. The visual identity,
-layout and product screens are intentionally not defined yet.
+Frontend application for the ARES PATH research prototype. The current screen
+keeps the existing console shell while consuming the real FastAPI contracts.
 
 ## Stack
 
@@ -31,6 +31,30 @@ pnpm test:e2e
 
 Copy `.env.example` to `.env.local` and set the FastAPI URL when the backend
 is available. Do not commit `.env.local` or credentials.
+
+## Backend integration
+
+Run FastAPI from `backend/`:
+
+```bash
+source .venv/Scripts/activate
+python -m uvicorn app.main:app --reload
+```
+
+Then run this app from `frontend/`:
+
+```bash
+pnpm dev
+```
+
+The frontend loads health, system info, regions, raster metadata, NASA Mars
+Trek WMTS descriptors and scientific-target entries. OpenLayers renders CTX as
+the regional orbital base and HiRISE when its coverage is enabled; the local
+analysis rasters remain optional layers constrained to their real geospatial
+extent. Mission routes, waypoints, scientific targets and the computational
+ROI are vector overlays transformed from the backend's `grid_row_col` contract
+through the local Mars equirectangular metadata. The raw GeoTIFF endpoint is
+not used as a numeric source in the browser.
 
 ## Structure
 
