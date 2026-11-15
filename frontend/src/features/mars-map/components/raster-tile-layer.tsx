@@ -19,15 +19,6 @@ function tileCoordinates(matrixSize: number) {
   }));
 }
 
-function layerAspectRatio(layer: MapLayer): number | undefined {
-  if (!layer.mapBounds) return undefined;
-
-  const [left, bottom, right, top] = layer.mapBounds;
-  const width = right - left;
-  const height = top - bottom;
-  return width > 0 && height > 0 ? width / height : undefined;
-}
-
 export function RasterTileLayer({ layer, zoomLevel }: RasterTileLayerProps) {
   const [tileError, setTileError] = useState(false);
   const minimumZoom = layer.minZoom ?? 0;
@@ -38,7 +29,6 @@ export function RasterTileLayer({ layer, zoomLevel }: RasterTileLayerProps) {
   );
   const matrixSize = 2 ** tileZoom;
   const coordinates = useMemo(() => tileCoordinates(matrixSize), [matrixSize]);
-  const aspectRatio = layerAspectRatio(layer);
 
   if (!layer.tileUrlTemplate) {
     return (
@@ -54,7 +44,6 @@ export function RasterTileLayer({ layer, zoomLevel }: RasterTileLayerProps) {
       data-layer-id={layer.id}
       data-tile-zoom={tileZoom}
       aria-label={`${layer.label} native raster`}
-      style={aspectRatio ? { aspectRatio: String(aspectRatio) } : undefined}
     >
       <div
         className="raster-layer__tiles"
