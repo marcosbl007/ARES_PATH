@@ -145,6 +145,30 @@ export const LayerSchema = z
   })
   .passthrough();
 
+export const MarsTrekLayerSchema = z
+  .object({
+    layer_id: z.string().min(1),
+    title: z.string().min(1),
+    mission: z.string().min(1),
+    instrument: z.string().min(1),
+    item_uuid: z.string().min(1),
+    wmts_endpoint: z.string().url(),
+    capabilities_url: z.string().url(),
+    tile_url_template: z.string().url(),
+    style: z.string().min(1),
+    tile_matrix_set: z.string().min(1),
+    format: z.string().min(1),
+    wmts_crs: z.string().min(1),
+    coverage_bbox: z.array(finiteNumber).length(4),
+    coverage_bbox_coordinate_system: z.string().min(1),
+    max_zoom: z.number().int().nonnegative(),
+    source_url: z.string().url(),
+    verification: z.string().min(1),
+    verified_on: z.string().min(1),
+    local_alignment: z.string().min(1),
+  })
+  .passthrough();
+
 export const ElevationProfileResponseSchema = z
   .object({
     grid_path: z.array(GridPointSchema).min(1),
@@ -169,4 +193,5 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 export type SystemInfoResponse = z.infer<typeof SystemInfoResponseSchema>;
 export type RegionMetadata = z.infer<typeof RegionMetadataSchema>;
 export type Layer = z.infer<typeof LayerSchema>;
+export type MarsTrekLayer = z.infer<typeof MarsTrekLayerSchema>;
 export type ElevationProfileResponse = z.infer<typeof ElevationProfileResponseSchema>;

@@ -2,13 +2,16 @@ import { getJson } from "@/shared/api/http-client";
 import { API_BASE_URL } from "@/shared/config/runtime";
 import {
   LayerSchema,
+  MarsTrekLayerSchema,
   RegionMetadataSchema,
   type Layer,
+  type MarsTrekLayer,
   type RegionMetadata,
 } from "@/shared/types/api-contract";
 
 const RegionListSchema = RegionMetadataSchema.array();
 const LayerListSchema = LayerSchema.array();
+const MarsTrekLayerListSchema = MarsTrekLayerSchema.array();
 
 export function resolveApiResourceUrl(resourcePath: string): string {
   return new URL(resourcePath, `${API_BASE_URL}/`).toString();
@@ -45,4 +48,8 @@ export function getRegionLayers(regionId: string, signal?: AbortSignal): Promise
     LayerListSchema,
     signal,
   );
+}
+
+export function getMarsTrekLayers(signal?: AbortSignal): Promise<MarsTrekLayer[]> {
+  return getJson("/api/data/mars-trek/layers", MarsTrekLayerListSchema, signal);
 }

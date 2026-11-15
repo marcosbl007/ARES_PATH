@@ -9,11 +9,17 @@ import type {
   Layer,
   MissionRequest,
   MissionResponse,
+  MarsTrekLayer,
   RegionMetadata,
   ScientificTarget,
   SystemInfoResponse,
 } from "@/shared/types/api-contract";
-import { getRegionLayers, getRegionMetadata, getRegions } from "@/features/mars-map/services/region-api";
+import {
+  getMarsTrekLayers,
+  getRegionLayers,
+  getRegionMetadata,
+  getRegions,
+} from "@/features/mars-map/services/region-api";
 import {
   createMissionPlan,
   getElevationProfile,
@@ -35,6 +41,7 @@ type MissionPlanningState = {
   selectedRegionId: string;
   metadata: RegionMetadata | null;
   layers: Layer[];
+  marsTrekLayers: MarsTrekLayer[];
   scientificTargets: ScientificTarget[];
   mission: MissionResponse | null;
   elevationProfile: ElevationProfileResponse | null;
@@ -52,6 +59,7 @@ const initialState: MissionPlanningState = {
   selectedRegionId: "",
   metadata: null,
   layers: [],
+  marsTrekLayers: [],
   scientificTargets: [],
   mission: null,
   elevationProfile: null,
@@ -91,8 +99,13 @@ export function useMissionPlanning() {
 
     setState((current) => ({ ...current, workspaceStatus: "loading", error: null }));
 
-    Promise.all([getHealth(controller.signal), getSystemInfo(controller.signal), getRegions(controller.signal)])
-      .then(([health, systemInfo, regions]) => {
+    Promise.all([
+      getHealth(controller.signal),
+      getSystemInfo(controller.signal),
+      getRegions(controller.signal),
+      getMarsTrekLayers(controller.signal),
+    ])
+      .then(([health, systemInfo, regions, marsTrekLayers]) => {
         if (!active) return;
 
         setState((current) => ({
@@ -101,6 +114,7 @@ export function useMissionPlanning() {
           health,
           systemInfo,
           regions,
+          marsTrekLayers,
           selectedRegionId: current.selectedRegionId || regions[0]?.region_id || "",
           error: null,
         }));

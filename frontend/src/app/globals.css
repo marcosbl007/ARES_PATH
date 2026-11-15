@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "ol/ol.css";
 
 :root {
   color-scheme: dark;
@@ -445,6 +446,31 @@ input:focus-visible {
   box-shadow: var(--sunken-shadow);
 }
 
+.ol-map-container {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  background: #07101c;
+}
+
+.ol-map-container .ol-viewport,
+.ol-map-container .ol-layers,
+.ol-map-container .ol-layer {
+  width: 100%;
+  height: 100%;
+}
+
+.ol-map-container .ol-viewport {
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.ol-map-container .ol-layer {
+  position: absolute;
+}
+
 .map-canvas__vignette {
   position: absolute;
   z-index: 3;
@@ -571,91 +597,6 @@ input:focus-visible {
   background: var(--line);
 }
 
-.map-graphic {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  transition: transform 180ms ease;
-}
-
-.map-surface {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #080f18;
-}
-
-.map-raster-stack,
-.raster-layer,
-.raster-layer__tiles {
-  position: absolute;
-  inset: 0;
-}
-
-.map-raster-stack {
-  overflow: hidden;
-  background: #080f18;
-}
-
-.raster-layer {
-  overflow: hidden;
-}
-
-.raster-layer__tiles {
-  display: grid;
-}
-
-.raster-layer__tile {
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  object-fit: fill;
-  image-rendering: auto;
-}
-
-.raster-layer--unavailable,
-.raster-layer__error,
-.map-raster-empty {
-  display: grid;
-  place-items: center;
-  color: var(--faint);
-  font-size: 8px;
-  letter-spacing: 0.08em;
-  text-align: center;
-}
-
-.raster-layer--unavailable,
-.raster-layer__error {
-  position: absolute;
-  inset: 0;
-  background: rgba(3, 7, 13, 0.86);
-}
-
-.raster-layer__error {
-  z-index: 2;
-  color: var(--red);
-}
-
-.map-raster-empty {
-  position: absolute;
-  inset: 0;
-}
-
-.map-route-overlay {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
 .map-route {
   fill: none;
   stroke-linecap: round;
@@ -763,7 +704,11 @@ input:focus-visible {
   background: var(--red);
 }
 
-.legend-dot--raster {
+.legend-dot--orbital {
+  background: var(--blue);
+}
+
+.legend-dot--roi {
   background: var(--amber);
 }
 

@@ -47,14 +47,14 @@ Then run this app from `frontend/`:
 pnpm dev
 ```
 
-The frontend loads health, system info, regions, raster metadata, native raster
-tile descriptors and scientific-target entries. The map renders the backend's
-display-only PNG tile matrix (`local_native_xyz`) instead of synthetic contour
-lines; routes remain an SVG overlay using the backend's `grid_row_col` contract.
-Mission setup sends one validated `POST /api/missions/plan` request and renders
-the returned routes, comparison, elevation profile, sources and limitations.
-The raw GeoTIFF endpoint remains available for downloads/analysis and is not
-used as a numeric source in the browser.
+The frontend loads health, system info, regions, raster metadata, NASA Mars
+Trek WMTS descriptors and scientific-target entries. OpenLayers renders CTX as
+the regional orbital base and HiRISE when its coverage is enabled; the local
+analysis rasters remain optional layers constrained to their real geospatial
+extent. Mission routes, waypoints, scientific targets and the computational
+ROI are vector overlays transformed from the backend's `grid_row_col` contract
+through the local Mars equirectangular metadata. The raw GeoTIFF endpoint is
+not used as a numeric source in the browser.
 
 ## Structure
 

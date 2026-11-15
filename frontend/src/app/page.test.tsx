@@ -30,6 +30,8 @@ describe("frontend foundation", () => {
                 valid_cells: 100,
                 processed_sha256: "synthetic",
               }]
+            : url.includes("/api/data/mars-trek/layers")
+              ? []
             : url.endsWith("/layers")
               ? [{
                   layer_id: "elevation",

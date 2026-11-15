@@ -14,6 +14,8 @@ import { RouteAnalysisPanel } from "@/features/route-analysis/components/route-a
 import type { GridPoint } from "@/shared/types/api-contract";
 
 const layerColors: Record<string, string> = {
+  ctx: "#5bc0eb",
+  hirise: "#fdb813",
   elevation: "#38bdf8",
   orthoimage: "#a7f3d0",
 };
@@ -38,14 +40,22 @@ function mapLayerId(layerId: string): MapLayerId | null {
   return null;
 }
 
+function marsTrekLayerId(instrument: string): MapLayerId {
+  return instrument.toLowerCase().includes("hirise") ? "hirise" : "ctx";
+}
+
 function mapBoundsTuple(bounds: number[] | undefined): [number, number, number, number] | undefined {
   if (!bounds || bounds.length !== 4) return undefined;
   return [bounds[0], bounds[1], bounds[2], bounds[3]];
 }
 
+function transformTuple(transform: number[] | undefined): [number, number, number, number, number, number] | undefined {
+  if (!transform || transform.length !== 6) return undefined;
+  return [transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]];
+}
+
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
-  const [zoomLevel, setZoomLevel] = useState(1);
   const [setupOpen, setSetupOpen] = useState(true);
   const [analysisOpen, setAnalysisOpen] = useState(true);
   const [startDraft, setStartDraft] = useState<PointDraft>({ row: "", col: "" });
@@ -53,7 +63,7 @@ export default function Home() {
   const [maxSlopeDeg, setMaxSlopeDeg] = useState("20");
   const [slopeWeight, setSlopeWeight] = useState("2");
   const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
-  const [activeLayerIds, setActiveLayerIds] = useState<MapLayerId[]>(["elevation"]);
+  const [activeLayerIds, setActiveLayerIds] = useState<MapLayerId[]>(["ctx", "hirise"]);
   const planning = useMissionPlanning();
 
   useEffect(() => {
@@ -93,24 +103,52 @@ export default function Home() {
   ]);
 
   const backendLayers = useMemo<MapLayer[]>(
-    () => planning.layers.flatMap((layer) => {
-      const id = mapLayerId(layer.layer_id);
-      if (!id) return [];
-      return [{
-        id,
-        label: `${id === "optical" ? "Optical" : "Elevation"} / native tiles`,
-        color: layerColors[layer.layer_id] ?? "#a7f3d0",
-        active: activeLayerIds.includes(id),
-        tileUrlTemplate: layer.tile_url_template,
-        tileScheme: layer.tile_scheme,
-        tileSize: layer.tile_size,
-        minZoom: layer.min_zoom,
-        maxZoom: layer.max_zoom,
-        shape: layer.shape,
-        mapBounds: mapBoundsTuple(layer.map_bounds),
-      }];
-    }),
-    [activeLayerIds, planning.layers],
+    () => [
+      ...planning.marsTrekLayers.map((layer) => {
+        const id = marsTrekLayerId(layer.instrument);
+        return {
+          id,
+          label: `${layer.instrument} / NASA orbital`,
+          color: layerColors[id],
+          active: activeLayerIds.includes(id),
+          sourceKind: "mars-trek" as const,
+          wmtsLayerId: layer.layer_id,
+          wmtsEndpoint: layer.wmts_endpoint,
+          capabilitiesUrl: layer.capabilities_url,
+          wmtsCrs: layer.wmts_crs,
+          tileUrlTemplate: layer.tile_url_template,
+          tileMatrixSet: layer.tile_matrix_set,
+          style: layer.style,
+          format: layer.format,
+          coverageExtent: mapBoundsTuple(layer.coverage_bbox),
+          coverageCoordinateSystem: layer.coverage_bbox_coordinate_system,
+          minZoom: 0,
+          maxZoom: layer.max_zoom,
+        };
+      }),
+      ...planning.layers.flatMap((layer) => {
+        const id = mapLayerId(layer.layer_id);
+        if (!id) return [];
+        return [{
+          id,
+          label: `${id === "optical" ? "Optical" : "Elevation"} / analysis`,
+          color: layerColors[layer.layer_id] ?? "#a7f3d0",
+          active: activeLayerIds.includes(id),
+          sourceKind: "local" as const,
+          localPreviewUrl: layer.preview_url,
+          localRasterUrl: layer.raster_url,
+          localCrsWkt: layer.crs_wkt,
+          localTransform: transformTuple(layer.transform),
+          localShape: layer.shape,
+          localMapBounds: mapBoundsTuple(layer.map_bounds),
+          tileScheme: layer.tile_scheme,
+          tileSize: layer.tile_size,
+          minZoom: layer.min_zoom,
+          maxZoom: layer.max_zoom,
+        }];
+      }),
+    ],
+    [activeLayerIds, planning.layers, planning.marsTrekLayers],
   );
 
   const handlePointChange = (point: "start" | "destination", axis: keyof PointDraft, value: string) => {
@@ -123,7 +161,7 @@ export default function Home() {
     setStartDraft({ row: "", col: "" });
     setDestinationDraft({ row: "", col: "" });
     setSelectedTargetIds([]);
-    setActiveLayerIds(["elevation"]);
+    setActiveLayerIds(["ctx", "hirise"]);
   };
 
   const handleTargetToggle = (targetId: string) => {
@@ -150,9 +188,18 @@ export default function Home() {
   };
 
   const toggleLayer = (layerId: MapLayerId) => {
-    setActiveLayerIds((current) => current.includes(layerId)
-      ? current.filter((id) => id !== layerId)
-      : [...current, layerId]);
+    setActiveLayerIds((current) => {
+      const isOrbitalLayer = layerId === "ctx" || layerId === "hirise";
+      if (isOrbitalLayer) {
+        return current.includes(layerId)
+          ? current.filter((id) => id !== layerId)
+          : [...current.filter((id) => id !== "ctx" && id !== "hirise"), layerId];
+      }
+
+      return current.includes(layerId)
+        ? current.filter((id) => id !== layerId)
+        : [...current, layerId];
+    });
   };
 
   const apiStatus = planning.workspaceStatus === "loading" ? "loading" : planning.workspaceStatus === "success" ? "online" : "error";
@@ -205,10 +252,7 @@ export default function Home() {
             regionId={planning.selectedRegionId}
             metadata={planning.metadata}
             mission={planning.mission}
-            zoomLevel={zoomLevel}
             onToggleLayer={toggleLayer}
-            onZoomChange={setZoomLevel}
-            onResetView={() => setZoomLevel(1)}
           />
         </main>
 
@@ -226,7 +270,7 @@ export default function Home() {
       <footer className="statusbar">
         <span><StatusDot tone={planning.workspaceStatus === "error" ? "red" : "blue"} /> {apiFooterLabel}</span>
         <span>DATA SOURCES: {dataSources}</span>
-        <span>CRS: {planning.metadata ? "AVAILABLE" : "PENDING"}</span>
+        <span>CRS: {planning.metadata ? "MARS TREK + LOCAL" : "PENDING"}</span>
         <span className="statusbar__right">{planning.mission ? "MISSION RESPONSE LOADED" : "NO MISSION LOADED"}</span>
       </footer>
     </div>
