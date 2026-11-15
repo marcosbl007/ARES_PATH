@@ -1,0 +1,114 @@
+{
+  "original_shape": [
+    11538,
+    6934
+  ],
+  "original_dtype": "float32",
+  "original_nodata": "-3.4028226550889045e+38",
+  "original_transform": [
+    1.0096476466229,
+    0.0,
+    -3782.1400842493836,
+    0.0,
+    -1.0096476466229,
+    1101405.434395636
+  ],
+  "original_crs_wkt": "PROJCS[\"EQUIRECTANGULAR MARS\",GEOGCS[\"GCS_MARS\",DATUM[\"D_MARS\",SPHEROID[\"MARS_localRadius\",3394839.8133163,0]],PRIMEM[\"Reference_Meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Equirectangular\"],PARAMETER[\"standard_parallel_1\",15],PARAMETER[\"central_meridian\",77.41],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+  "original_tags": {
+    "FILTER_NAME": "",
+    "DATA_SET_ID": "\"MRO-M-HIRISE-5-DTM-V1.0\"",
+    "PRODUCT_ID": "\"DTEEC_002387_1985_003798_1985_A01\"",
+    "PRODUCER_INSTITUTION_NAME": "\"UNIVERSITY OF ARIZONA\"",
+    "PRODUCT_TYPE": "",
+    "MISSION_NAME": "",
+    "SPACECRAFT_NAME": "",
+    "INSTRUMENT_NAME": "\"HIGH RESOLUTION IMAGING SCIENCE EXPERIMENT\"",
+    "INSTRUMENT_ID": "\"HIRISE\"",
+    "TARGET_NAME": "\"MARS\"",
+    "CENTER_FILTER_WAVELENGTH": "",
+    "BANDWIDTH": "",
+    "PRODUCT_CREATION_TIME": "",
+    "START_TIME": "",
+    "STOP_TIME": "",
+    "NOTE": ""
+  },
+  "original_scale": 1.0,
+  "original_offset": 0.0,
+  "vertical_units": "m",
+  "horizontal_units": "m",
+  "vertical_units_evidence": "source catalog",
+  "window_col_row_width_height": [
+    2816,
+    5116,
+    1024,
+    1024
+  ],
+  "resampling": "none",
+  "region_id": "jezero_fan_1024",
+  "source_ids": [
+    "DTEEC_002387_1985_003798_1985_A01"
+  ],
+  "source": {
+    "product_id": "DTEEC_002387_1985_003798_1985_A01",
+    "dataset_id": "MRO-M-HIRISE-5-DTM-V1.0",
+    "version": "1.0",
+    "mission": "Mars Reconnaissance Orbiter",
+    "instrument": "HiRISE",
+    "producer": "University of Arizona",
+    "title": "Depositional fan in Jezero Crater",
+    "official_page": "https://www.uahirise.org/dtm/PSP_002387_1985",
+    "download_url": "https://www.uahirise.org/PDS/DTM/PSP/ORB_002300_002399/PSP_002387_1985_PSP_003798_1985/DTEEC_002387_1985_003798_1985_A01.IMG",
+    "registry_reference": "https://registry.opendata.aws/nasa-usgs-mars-hirise-dtms/",
+    "accessed_on": "2026-11-14",
+    "authentication": false,
+    "format": "PDS3 IMG float32",
+    "size_bytes": 320045704,
+    "vertical_units": "m",
+    "vertical_datum": "Mars 2000 equipotential surface (Smith et al. 2001), per PDS IMAGE NOTE",
+    "horizontal_units": "m",
+    "nominal_resolution_m": 1.0,
+    "pds_map_scale_m": 1.0096476466229,
+    "shape": [
+      11538,
+      6934
+    ],
+    "geographic_bounds_planetocentric_east": [
+      77.34394372,
+      18.392143429723,
+      77.466254,
+      18.588734996352
+    ],
+    "projection": "EQUIRECTANGULAR",
+    "projection_center_latitude_deg": 15.0,
+    "projection_center_longitude_deg": 77.41,
+    "sphere_radius_m": 3394839.8133163,
+    "attribution": "NASA/JPL-Caltech/University of Arizona",
+    "usage_policy": "https://www.uahirise.org/usage/"
+  },
+  "shape": [
+    1024,
+    1024
+  ],
+  "transform": [
+    1.0096476466229,
+    0.0,
+    -938.9723113592968,
+    0.0,
+    -1.0096476466229,
+    1096240.0770355132
+  ],
+  "crs_wkt": "PROJCS[\"EQUIRECTANGULAR MARS\",GEOGCS[\"GCS_MARS\",DATUM[\"D_MARS\",SPHEROID[\"MARS_localRadius\",3394839.8133163,0]],PRIMEM[\"Reference_Meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Equirectangular\"],PARAMETER[\"standard_parallel_1\",15],PARAMETER[\"central_meridian\",77.41],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+  "pixel_size_x_m": 1.0096476466229,
+  "pixel_size_y_m": 1.0096476466229,
+  "valid_cells": 1048576,
+  "map_bounds": [
+    -938.9723113592968,
+    1095206.1978453714,
+    94.9068787825529,
+    1096240.0770355132
+  ],
+  "source_sha256": "268bd5912f0aa0e0b0be8db9004085c2ace78f559377acad0a47b32878c7ccea",
+  "processed_sha256": "85af207c9f5b2820ffe06d162287cf12064b2f84275ee0b2bec42ad779dce88a",
+  "processed_at": "2026-11-15T13:50:24.469389+00:00",
+  "coordinate_system": "grid_row_col"
+}

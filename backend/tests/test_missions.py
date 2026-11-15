@@ -116,8 +116,35 @@ def test_mission_plan_returns_two_typed_routes_sources_and_limitations() -> None
     assert payload["data_sources"] == ["synthetic-elevation"]
     assert payload["scientific_targets"][0]["is_navigable"] is False
     assert payload["scientific_targets"][0]["position"] is None
+    assert payload["scientific_targets"][0]["source_references"] == []
+    assert payload["briefing"]["mission_overview"]["planning_status"] == "calculated"
+    assert len(payload["briefing"]["route_comparison"]) == 2
+    assert payload["briefing"]["scientific_objectives"][0]["evidence_status"] == "unverified"
     assert any("contextual" in limitation for limitation in payload["limitations"])
     json.dumps(payload, allow_nan=False)
+
+
+def test_mission_plan_routes_inside_a_selected_window_and_keeps_parent_coordinates() -> None:
+    response = app_client().post(
+        "/api/missions/plan",
+        json=mission_payload(
+            start={"row": 2, "col": 3},
+            destination={"row": 6, "col": 7},
+            scientific_target_ids=[],
+            analysis_window={"row": 2, "col": 3, "height": 5, "width": 5},
+        ),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["analysis_window"] == {"row": 2, "col": 3, "height": 5, "width": 5}
+    assert payload["routes"][0]["grid_path"][0] == {"row": 2, "col": 3}
+    assert payload["routes"][0]["grid_path"][-1] == {"row": 6, "col": 7}
+    assert payload["briefing"]["route_comparison"][0]["elevation_profile"]["grid_path"][0] == {
+        "row": 2,
+        "col": 3,
+    }
+    assert any("selected analysis window" in limitation for limitation in payload["limitations"])
 
 
 def test_scientific_targets_endpoint_returns_documented_catalog_entries() -> None:
@@ -125,6 +152,41 @@ def test_scientific_targets_endpoint_returns_documented_catalog_entries() -> Non
 
     assert response.status_code == 200
     assert response.json()[0]["target_id"] == "synthetic_context"
+
+
+def test_scientific_target_detail_endpoint_returns_one_catalog_entry() -> None:
+    response = app_client().get(
+        "/api/missions/scientific-targets/synthetic_context?region_id=synthetic"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["target_id"] == "synthetic_context"
+    assert response.json()["routable"] is False
+
+
+def test_terrain_sample_endpoint_uses_the_real_region_contract() -> None:
+    response = app_client().post(
+        "/api/terrain/sample",
+        json={
+            "region_id": "synthetic",
+            "point": {"row": 2, "col": 3},
+            "terrain_config": {"max_slope_deg": 20, "slope_weight": 2},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["coverage_status"] == "valid"
+    assert payload["elevation_m"] == 100.0
+    assert payload["slope_deg"] == 0.0
+    assert payload["source_ids"] == ["synthetic-elevation"]
+
+
+def test_scientific_targets_endpoint_rejects_unknown_region() -> None:
+    response = app_client().get("/api/missions/scientific-targets?region_id=does_not_exist")
+
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "REGION_NOT_FOUND"
 
 
 def test_route_calculation_and_terrain_summary_use_the_same_service() -> None:

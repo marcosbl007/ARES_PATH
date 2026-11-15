@@ -23,9 +23,32 @@ def create_router(service: MissionService) -> APIRouter:
         summary="List documented scientific targets for a region",
     )
     def scientific_targets(region_id: str) -> list[ScientificTargetResponse]:
-        return [
-            build_target_response(target) for target in service.get_scientific_targets(region_id)
-        ]
+        try:
+            targets = service.get_scientific_targets(region_id)
+        except MissionServiceError as error:
+            raise _as_http_error(error) from error
+        return [build_target_response(target) for target in targets]
+
+    @router.get(
+        "/scientific-targets/{target_id}",
+        response_model=ScientificTargetResponse,
+        summary="Read one documented scientific target",
+    )
+    def scientific_target(target_id: str, region_id: str | None = None) -> ScientificTargetResponse:
+        try:
+            if region_id is not None:
+                service.load_region(region_id)
+            target = service.catalog.get(target_id, region_id=region_id)
+            if target is None:
+                raise MissionServiceError(
+                    "SCIENTIFIC_TARGET_NOT_FOUND",
+                    f"Unknown scientific target: {target_id}.",
+                    status_code=404,
+                    details={"target_id": target_id, "region_id": region_id or "catalog"},
+                )
+        except MissionServiceError as error:
+            raise _as_http_error(error) from error
+        return build_target_response(target)
 
     @router.post(
         "/plan",

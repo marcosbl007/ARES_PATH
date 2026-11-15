@@ -59,6 +59,64 @@
       "pds_map_scale_m": 1.0096476466229,
       "associated_dtm": "DTEEC_002387_1985_003798_1985_A01",
       "attribution": "NASA/JPL-Caltech/University of Arizona"
+    },
+    "MARS2020_CTX_JEZERO_DTM_20M": {
+      "product_id": "M20_JezeroCrater_CTXDEM_20m.tif",
+      "dataset_id": "P906QQT8",
+      "version": "1.0",
+      "mission": "Mars 2020",
+      "instrument": "Context Camera (CTX)",
+      "producer": "USGS Astrogeology Science Center",
+      "title": "Mars 2020 Science Investigation CTX DEM Mosaic for Jezero Crater",
+      "official_page": "https://www.usgs.gov/data/mars-2020-terrain-relative-navigation-ctx-dtm-mosaic",
+      "download_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/ScienceInvestigationMaps_JPL/M20_JezeroCrater_CTXDEM_20m.tif",
+      "doi": "https://doi.org/10.5066/P906QQT8",
+      "accessed_on": "2026-11-15",
+      "authentication": false,
+      "format": "GeoTIFF float32",
+      "size_bytes": 90345300,
+      "vertical_units": "m",
+      "vertical_datum": "MOLA topography delta geoid, per product name",
+      "horizontal_units": "m",
+      "nominal_resolution_m": 20.0,
+      "shape": [
+        5067,
+        4456
+      ],
+      "projection": "EQUIRECTANGULAR",
+      "projection_center_latitude_deg": 18.4663,
+      "projection_center_longitude_deg": 0.0,
+      "attribution": "USGS Astrogeology / NASA / JPL",
+      "usage_policy": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits"
+    },
+    "MARS2020_CTX_JEZERO_ORTHO_5M": {
+      "product_id": "M20_JezeroCrater_CTXortho_mosaic_5m.tif",
+      "dataset_id": "P9GV1ND3",
+      "version": "1.0",
+      "mission": "Mars 2020",
+      "instrument": "Context Camera (CTX)",
+      "producer": "USGS Astrogeology Science Center",
+      "title": "Mars 2020 Science Investigation CTX Orthoimage Mosaic for Jezero Crater",
+      "official_page": "https://www.usgs.gov/data/mars-2020-terrain-relative-navigation-context-camera-orthorectified-image-mosaic",
+      "download_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/ScienceInvestigationMaps_JPL/M20_JezeroCrater_CTXortho_mosaic_5m.tif",
+      "doi": "https://doi.org/10.5066/P9GV1ND3",
+      "accessed_on": "2026-11-15",
+      "authentication": false,
+      "format": "GeoTIFF uint8",
+      "size_bytes": 359599280,
+      "kind": "orthoimage",
+      "units": "DN",
+      "nominal_resolution_m": 5.0,
+      "shape": [
+        20234,
+        17766
+      ],
+      "projection": "EQUIRECTANGULAR",
+      "projection_center_latitude_deg": 18.4663,
+      "projection_center_longitude_deg": 0.0,
+      "attribution": "USGS Astrogeology / NASA / JPL",
+      "usage_policy": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+      "associated_dtm": "MARS2020_CTX_JEZERO_DTM_20M"
     }
   }
 }

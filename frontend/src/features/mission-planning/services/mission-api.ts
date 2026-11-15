@@ -2,9 +2,11 @@ import { getJson, postJson } from "@/shared/api/http-client";
 import {
   ElevationProfileResponseSchema,
   HealthResponseSchema,
+  type AnalysisWindow,
   MissionRequestSchema,
   MissionResponseSchema,
   ScientificTargetSchema,
+  TerrainSampleResponseSchema,
   SystemInfoResponseSchema,
   type ElevationProfileResponse,
   type GridPoint,
@@ -12,6 +14,7 @@ import {
   type MissionRequest,
   type MissionResponse,
   type ScientificTarget,
+  type TerrainSampleResponse,
   type SystemInfoResponse,
 } from "@/shared/types/api-contract";
 
@@ -36,6 +39,19 @@ export function getScientificTargets(
   );
 }
 
+export function getScientificTarget(
+  targetId: string,
+  regionId?: string,
+  signal?: AbortSignal,
+): Promise<ScientificTarget> {
+  const query = regionId ? `?region_id=${encodeURIComponent(regionId)}` : "";
+  return getJson(
+    `/api/missions/scientific-targets/${encodeURIComponent(targetId)}${query}`,
+    ScientificTargetSchema,
+    signal,
+  );
+}
+
 export function createMissionPlan(
   request: MissionRequest,
   signal?: AbortSignal,
@@ -46,12 +62,37 @@ export function createMissionPlan(
 export function getElevationProfile(
   regionId: string,
   gridPath: GridPoint[],
+  analysisWindow?: AnalysisWindow | null,
   signal?: AbortSignal,
 ): Promise<ElevationProfileResponse> {
   return postJson(
     "/api/terrain/elevation-profile",
-    { region_id: regionId, grid_path: gridPath },
+    {
+      region_id: regionId,
+      grid_path: gridPath,
+      ...(analysisWindow ? { analysis_window: analysisWindow } : {}),
+    },
     ElevationProfileResponseSchema,
+    signal,
+  );
+}
+
+export function getTerrainSample(
+  regionId: string,
+  point: GridPoint,
+  terrainConfig: { max_slope_deg: number; slope_weight: number },
+  analysisWindow?: AnalysisWindow | null,
+  signal?: AbortSignal,
+): Promise<TerrainSampleResponse> {
+  return postJson(
+    "/api/terrain/sample",
+    {
+      region_id: regionId,
+      point,
+      terrain_config: terrainConfig,
+      ...(analysisWindow ? { analysis_window: analysisWindow } : {}),
+    },
+    TerrainSampleResponseSchema,
     signal,
   );
 }

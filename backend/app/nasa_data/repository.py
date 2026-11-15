@@ -49,6 +49,14 @@ class RegionRepository:
                 region.pixel_size_y_m != metadata["pixel_size_y_m"] or
                 int(region.valid_mask.sum()) != metadata["valid_cells"]):
             raise ValueError("Raster and metadata disagree")
+        ortho_sidecar = self._path(region_id).with_name(f"{region_id}_orthoimage.json")
+        if ortho_sidecar.is_file():
+            ortho_metadata = json.loads(ortho_sidecar.read_text(encoding="utf-8"))
+            metadata = {
+                **metadata,
+                "ortho_source": ortho_metadata.get("source", {}),
+                "ortho_source_ids": ortho_metadata.get("source_ids", []),
+            }
         return RegionData(region.region_id, region.elevation_m, region.valid_mask,
                           region.transform, region.crs_wkt, region.pixel_size_x_m,
                           region.pixel_size_y_m, region.source_ids, metadata)
@@ -58,8 +66,10 @@ class RegionRepository:
 
     def get_available_layers(self, region_id: str) -> list[dict]:
         metadata = self.get_region_metadata(region_id)
+        source = metadata.get("source", {}) if isinstance(metadata.get("source"), dict) else {}
+
         def resource_fields(layer_id: str) -> dict[str, object]:
-            return {
+            fields: dict[str, object] = {
                 "shape": metadata["shape"],
                 "transform": metadata["transform"],
                 "crs_wkt": metadata["crs_wkt"],
@@ -68,7 +78,6 @@ class RegionRepository:
                 "pixel_size_y_m": metadata["pixel_size_y_m"],
                 "coordinate_system": "native_projected_mars",
                 "metadata_url": f"/api/data/regions/{region_id}/layers/{layer_id}/metadata",
-                "raster_url": f"/api/data/regions/{region_id}/layers/{layer_id}/raster",
                 "preview_url": f"/api/data/regions/{region_id}/layers/{layer_id}/preview.png",
                 "tile_url_template": (
                     f"/api/data/regions/{region_id}/layers/{layer_id}/tiles/{{z}}/{{x}}/{{y}}.png"
@@ -78,6 +87,9 @@ class RegionRepository:
                 "min_zoom": 0,
                 "max_zoom": 12,
             }
+            if layer_id != "slope":
+                fields["raster_url"] = f"/api/data/regions/{region_id}/layers/{layer_id}/raster"
+            return fields
 
         layers = [{
             "layer_id": "elevation",
@@ -85,6 +97,23 @@ class RegionRepository:
             "type": "raster",
             "source_ids": metadata["source_ids"],
             "used_for_routing": True,
+            "routing_role": "input",
+            "name": str(source.get("title", "Elevation model")),
+            "data_type": "elevation",
+            "mission": source.get("mission"),
+            "instrument": source.get("instrument"),
+            "spatial_resolution_m": float(metadata["pixel_size_x_m"]),
+            "coverage_status": "local_dtm_subset",
+            "coverage_description": "Validated local computational subset of the source DTM.",
+            "source_urls": [
+                value for value in (source.get("official_page"), source.get("registry_reference"))
+                if value
+            ],
+            "attribution": source.get("attribution"),
+            "limitations": [
+                "Elevation values describe the processed local DTM only.",
+                "No atmospheric, thermal, biological or real-time obstacle data are included.",
+            ],
             **resource_fields("elevation"),
         }]
         ortho_path = self._path(region_id).with_name(f"{region_id}_orthoimage.tif")
@@ -103,9 +132,55 @@ class RegionRepository:
                 "type": "raster",
                 "source_ids": ortho['source_ids'],
                 "used_for_routing": False,
+                "routing_role": "display_only",
+                "name": "HiRISE RED orthoimage",
+                "data_type": "optical_imagery",
+                "mission": ortho.get("source", {}).get("mission"),
+                "instrument": ortho.get("source", {}).get("instrument"),
+                "spatial_resolution_m": float(metadata["pixel_size_x_m"]),
+                "coverage_status": "grid_registered_local_subset",
+                "coverage_description": "Display raster registered to the local DTM grid.",
+                "source_urls": [
+                    value for value in (
+                        ortho.get("source", {}).get("official_page"),
+                        ortho.get("source", {}).get("download_url"),
+                    ) if value
+                ],
+                "attribution": ortho.get("source", {}).get("attribution"),
+                "limitations": [
+                    "DN values are visual context and are not elevation measurements.",
+                    "Independent visual review of the processed registration remains pending.",
+                ],
                 "alignment_status": ortho['alignment_status'],
                 **resource_fields("orthoimage"),
             })
+        layers.append({
+            "layer_id": "slope",
+            "units": "degrees",
+            "type": "derived_raster",
+            "source_ids": metadata["source_ids"],
+            "used_for_routing": True,
+            "routing_role": "derived_input",
+            "name": "Slope analysis",
+            "data_type": "slope",
+            "mission": source.get("mission"),
+            "instrument": source.get("instrument"),
+            "spatial_resolution_m": float(metadata["pixel_size_x_m"]),
+            "coverage_status": "derived_over_valid_dtm",
+            "coverage_description": "Slope is derived per cell from the validated elevation grid.",
+            "source_urls": [value for value in (source.get("official_page"),) if value],
+            "attribution": source.get("attribution"),
+            "derived_from": "elevation",
+            "derivation_method": (
+                "Finite differences with raster metre spacing; "
+                "atan(sqrt((dz/dx)^2 + (dz/dy)^2)) in degrees."
+            ),
+            "limitations": [
+                "This is a terrain gradient, not a mobility or safety score.",
+                "NoData neighbours produce an unsupported slope cell.",
+            ],
+            **resource_fields("slope"),
+        })
         return layers
 
     def list_regions(self) -> list[dict]:

@@ -14,6 +14,7 @@ const LayerListSchema = LayerSchema.array();
 const MarsTrekLayerListSchema = MarsTrekLayerSchema.array();
 
 export function resolveApiResourceUrl(resourcePath: string): string {
+  if (/^(data:|blob:)/i.test(resourcePath)) return resourcePath;
   return new URL(resourcePath, `${API_BASE_URL}/`).toString();
 }
 

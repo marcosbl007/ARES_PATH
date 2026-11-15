@@ -8,9 +8,20 @@ API exposes it as non-navigable instead of inventing a destination cell.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+
+@dataclass(frozen=True)
+class ScientificSourceReference:
+    """A source that supports a scientific target description."""
+
+    title: str
+    url: str
+    mission: str | None = None
+    instrument: str | None = None
+    dataset: str | None = None
 
 
 @dataclass(frozen=True)
@@ -26,6 +37,15 @@ class ScientificTarget:
     source_url: str
     source_ids: tuple[str, ...]
     description: str
+    target_type: str = "observation_site"
+    scientific_objective: str = "Review the documented location as scientific context."
+    scientific_importance: str | None = None
+    geometry_type: str = "point"
+    evidence_status: str = "unverified"
+    source_references: tuple[ScientificSourceReference, ...] = field(default_factory=tuple)
+    spatial_resolution_m: float | None = None
+    limitations: tuple[str, ...] = field(default_factory=tuple)
+    routable: bool = False
 
 
 class ScientificTargetCatalog:
@@ -57,6 +77,21 @@ class ScientificTargetCatalog:
         status = str(item.get("coordinate_status", "contextual_only"))
         if status not in {"verified", "contextual_only"}:
             raise ValueError("Unknown scientific target coordinate status")
+        source_references = tuple(
+            ScientificSourceReference(
+                title=str(reference["title"]),
+                url=str(reference["url"]),
+                mission=(str(reference["mission"]) if reference.get("mission") is not None else None),
+                instrument=(
+                    str(reference["instrument"])
+                    if reference.get("instrument") is not None
+                    else None
+                ),
+                dataset=(str(reference["dataset"]) if reference.get("dataset") is not None else None),
+            )
+            for reference in item.get("source_references", [])
+        )
+        raw_resolution = item.get("spatial_resolution_m")
         return ScientificTarget(
             target_id=str(item["target_id"]),
             name=str(item["name"]),
@@ -69,6 +104,24 @@ class ScientificTargetCatalog:
             source_url=str(item["source_url"]),
             source_ids=tuple(str(value) for value in item.get("source_ids", [])),
             description=str(item["description"]),
+            target_type=str(item.get("target_type", "observation_site")),
+            scientific_objective=str(
+                item.get(
+                    "scientific_objective",
+                    "Review the documented location as scientific context.",
+                )
+            ),
+            scientific_importance=(
+                str(item["scientific_importance"])
+                if item.get("scientific_importance") is not None
+                else None
+            ),
+            geometry_type=str(item.get("geometry_type", "point")),
+            evidence_status=str(item.get("evidence_status", "unverified")),
+            source_references=source_references,
+            spatial_resolution_m=(float(raw_resolution) if raw_resolution is not None else None),
+            limitations=tuple(str(value) for value in item.get("limitations", [])),
+            routable=bool(item.get("routable", item.get("is_navigable", False))),
         )
 
     def for_region(self, region_id: str) -> tuple[ScientificTarget, ...]:
@@ -97,4 +150,9 @@ def get_scientific_targets(
     return (catalog or ScientificTargetCatalog()).for_region(region_id)
 
 
-__all__ = ["ScientificTarget", "ScientificTargetCatalog", "get_scientific_targets"]
+__all__ = [
+    "ScientificSourceReference",
+    "ScientificTarget",
+    "ScientificTargetCatalog",
+    "get_scientific_targets",
+]

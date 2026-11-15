@@ -321,9 +321,11 @@ def plan_path(
 | `GET /api/terrain/{region_id}/summary` | P2 | Estadísticas topográficas calculadas |
 | `POST /api/terrain/elevation-profile` | P2 | Perfil para una polilínea válida |
 | `POST /api/terrain/traversability` | P2 | Resumen de parámetros de transitabilidad, sin transferir raster enorme |
+| `POST /api/terrain/sample` | P2/P4 | Elevacion, pendiente y cobertura de una celda `grid_row_col` |
 | `POST /api/routes/calculate` | P3 | Calcular modo indicado |
 | `POST /api/routes/compare` | P3 | Comparar dos modos |
 | `GET /api/missions/scientific-targets` | P4 | Objetivos científicos verificados |
+| `GET /api/missions/scientific-targets/{target_id}` | P4 | Detalle y procedencia de un objetivo |
 | `POST /api/missions/plan` | P4 | **Contrato principal del frontend** |
 
 **Evitar duplicar lógica HTTP:** los módulos P1/P2/P3 proporcionan funciones de servicio y un `router` opcional aprobado por P4; `app/main.py` únicamente compone rutas. Si hace falta reducir alcance, priorizar `GET /regions`, `POST /routes/compare`, `POST /missions/plan`, `GET /health`.
@@ -753,12 +755,14 @@ Recomendación de demo: panel de misión izquierda, mapa central, comparación d
 | Desafío | `Interplanetary Survival Guide: Martian Map` confirmado | Solo si el equipo cambia de reto |
 | Nombre de solución | `ARES PATH` acordado | Si cambia nombre público |
 | Área piloto | Recorte `jezero_fan_256` del abanico deposicional de Jezero; DTM descargado y procesado | Tras validar alineación con ortoimagen y puntos de control |
+| ROI de planificación | El usuario selecciona un dataset regional Jezero: cuatro ventanas HiRISE o cuatro regiones CTX amplias; el `analysis_window` puede moverse/redimensionarse solo dentro del raster activo | Si se incorpora otra cobertura regional o cambia el contrato de ventanas |
 | Plan B geográfico | Gale/Mount Sharp u otra AOI con DTM validado | Si Jezero no es viable |
 | Backend | Python / FastAPI / NumPy / Rasterio | Al fijar versiones |
 | Algoritmo base | A* en rejilla de 8 vecinos | Si se prueba otra opción |
 | Criterios | Distancia y penalización de pendiente | Tras tests científicos |
 | Datos NASA concretos | HiRISE/MRO `DTEEC_002387_1985_003798_1985_A01`, PDS original público; CRS y unidades conservados | Ante otro producto o recorte; detalles en `docs/nasa-data-sources.md` |
 | Frontend | React/Next.js previsto, no asignado en este plan | Al definir interfaz real |
+| PWA/offline | Mission Pack consultable sin red: IndexedDB + Cache Storage; preview local compacta y WMTS/GeoTIFF fuente `online_only` | Al ampliar recursos offline o cambiar el contrato del paquete |
 | Fuente de verdad | Guía oficial + NASA + AGENTS.md | Ante cambios oficiales |
 | P5 | Trabajo mínimo | Mantener mínimo |
 
@@ -809,6 +813,25 @@ Se actualizó `develop` y se incorporaron sus cambios en `feature/terrain-analys
 Comprobación real con origen `(10,20)` y destino `(80,65)`, expresados en índices internos de prueba: ambas rutas fueron válidas, con 71 celdas y 89.495 m de distancia horizontal aproximada, pero sus secuencias difirieron. Al evaluar ambas con **la misma** función ponderada de P2, el coste de `shortest` fue 94.075194 y el de `terrain_aware` 92.531768. La pendiente máxima por tramo fue 5.277° y 5.654°, respectivamente; minimizar el coste acumulado no garantiza disminuir cada indicador. La verificación detallada, su alcance y las limitaciones están en [Validación](../docs/validation.md). Gate C quedó comprobado para este recorte y par de puntos. Siguen pendientes los endpoints HTTP y el flujo P4/frontend; el TIFF local no está versionado.
 
 ---
+
+### 2026-11-15 — ROI acotado al dataset regional
+
+Se confirma que el selector de área no opera sobre una superficie global libre.
+La UI ofrece ventanas HiRISE locales y cuatro regiones CTX amplias de Jezero;
+el usuario puede mover, ampliar o reducir el `analysis_window` únicamente
+dentro del raster regional activo. El frontend convierte el rectángulo a la
+cuadrícula del dataset; el backend vuelve a validar sus límites antes de
+recortar el DTM y calcular las rutas. Una selección fuera del dataset o fuera
+de la ventana no se procesa.
+
+### 2026-11-15 — Mosaicos CTX amplios de Jezero
+
+Se incorporó el mosaico oficial CTX de Jezero de 20 m para elevación y 5 m para
+ortoimagen. La cobertura común se dividió en cuatro regiones de `2530 x 2221`
+celdas (`jezero_ctx_northwest_20m`, `jezero_ctx_northeast_20m`,
+`jezero_ctx_southwest_20m`, `jezero_ctx_southeast_20m`). Cada región tiene su
+`elevation.tif`, `orthoimage.tif` y sidecars de procedencia; la ortoimagen se
+remuestrea a la cuadrícula de 20 m del DTM, sin usarse para calcular rutas.
 
 ## 13. Mensaje de contexto que cualquier integrante debe poder explicar
 

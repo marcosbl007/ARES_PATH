@@ -40,6 +40,22 @@ with the comma-separated `ARES_CORS_ORIGINS` variable.
 - `POST /api/routes/calculate`
 - `POST /api/routes/compare`
 
+The catalog exposes four validated HiRISE Jezero windows of `256 x 256`,
+`512 x 512`, `1024 x 1024` and `2048 x 2048` cells. They share the same local
+HiRISE DTM source. It also exposes four broad CTX regions:
+`jezero_ctx_northwest_20m`, `jezero_ctx_northeast_20m`,
+`jezero_ctx_southwest_20m` and `jezero_ctx_southeast_20m`. Each CTX region is
+`2530 x 2221` cells at 20 m/pixel and has an aligned CTX orthoimage resampled
+from the 5 m source. Every HiRISE window also has an aligned RED orthoimage.
+Mission requests can additionally provide an `analysis_window` rectangle
+inside the selected regional dataset; coordinates remain relative to that
+parent region while the backend crops the DTM before routing. The API rejects
+points and windows outside the selected region, so a route cannot silently
+leave the loaded dataset.
+The raw NASA sources stay in `data/raw/` and are intentionally visible to Git;
+Git LFS tracks these large inputs. The processed windows and metadata are the
+reproducible assets used by the API.
+
 Raster assets are exposed without turning them into JSON. The `raster` route
 returns the processed GeoTIFF bytes, preserving the numeric DTM values and
 georeferencing. `preview.png` and `tiles/...png` are display-only RGBA
@@ -93,5 +109,7 @@ Invoke-RestMethod `
 python -m pytest -q
 ```
 
-The tests use synthetic in-memory grids where possible. The real DTM remains a
-local reproducible asset and is not committed to Git.
+The tests use synthetic in-memory grids where possible and include an HTTP
+smoke test against the versioned GeoTIFF assets. The processed DTMs and the
+raw source inputs are visible to Git; large raw files are handled by Git LFS.
+Reproduction details are in `docs/nasa-data-sources.md`.

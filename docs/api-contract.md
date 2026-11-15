@@ -29,18 +29,32 @@ health.
   "destination": {"row": 80, "col": 65},
   "mode": "compare",
   "terrain_config": {"max_slope_deg": 20.0, "slope_weight": 2.0},
-  "scientific_target_ids": []
+  "scientific_target_ids": [],
+  "analysis_window": {"row": 0, "col": 0, "height": 256, "width": 256}
 }
 ```
 
+The `jezero_fan_*` identifiers select one of the four validated HiRISE windows;
+the `jezero_ctx_*_20m` identifiers select one of the four broad CTX regions.
+`analysis_window` is optional; when present, it selects a rectangular window
+inside the selected parent region. `start`, `destination` and returned
+`grid_path` remain in the parent region's `grid_row_col` coordinates; the
+backend crops the DTM before running both route alternatives, so routes cannot
+leave the selected window or regional dataset. The same optional field is
+accepted by the terrain sample and profile endpoints.
+
 The response contains a deterministic `mission_id`, one or two route objects,
 optional physical comparison deltas, source IDs, methodology version and
+limitations. It also includes a backend-generated `briefing` containing the
+mission overview, selected/user-defined objective, terrain assessment,
+per-route elevation profiles, evidence-backed trade-offs, provenance and
 limitations. Route metrics are calculated by P2/P3 from the loaded elevation
 grid; the API does not fabricate fallback numbers.
 
 `GET /api/missions/scientific-targets?region_id=...` returns only entries from
 the local documented catalog. Contextual entries may have `position: null` and
 `is_navigable: false` when a verified navigation coordinate is unavailable.
+`GET /api/missions/scientific-targets/{target_id}` returns one catalog entry.
 
 ## Supporting endpoints
 
@@ -52,10 +66,16 @@ the local documented catalog. Contextual entries may have `position: null` and
   `GET /api/data/regions/{region_id}/layers/{layer_id}/tiles/{zoom}/{column}/{row}.png`.
 - Mars Trek descriptors: `GET /api/data/mars-trek/layers`.
 - P2 summaries/profiles: `GET /api/terrain/{region_id}/summary`,
-  `POST /api/terrain/elevation-profile`, `POST /api/terrain/traversability`.
+  `POST /api/terrain/elevation-profile`, `POST /api/terrain/traversability`,
+  `POST /api/terrain/sample`.
 - P3 routes: `POST /api/routes/calculate`, `POST /api/routes/compare`.
 
 These endpoints return compact JSON and never transfer a complete raster.
+
+`POST /api/terrain/sample` accepts a `region_id`, one `point` under the
+`grid_row_col` contract and the terrain configuration. It returns the real DTM
+elevation, finite-difference slope, NoData/coverage state, resolution, source
+IDs and nearby routable catalog targets when such records exist.
 
 The `raster` endpoint is the exception by design: it returns the original
 processed GeoTIFF bytes with its numeric values and georeferencing. PNG

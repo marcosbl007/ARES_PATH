@@ -13,7 +13,28 @@
       "source_ids": [
         "DTEEC_002387_1985_003798_1985_A01"
       ],
-      "description": "Documented HiRISE DTM footprint used as regional context; no verified navigation target coordinate is asserted."
+      "description": "Documented HiRISE DTM footprint used as regional context; no verified navigation target coordinate is asserted.",
+      "target_type": "sedimentary_feature",
+      "scientific_objective": "Interpret the documented depositional-fan terrain context while planning observations inside the validated raster domain.",
+      "scientific_importance": "The source product is explicitly titled as a depositional fan DTM. ARES PATH uses that documented context without asserting a mineral deposit, sample site or operational waypoint.",
+      "geometry_type": "polygon",
+      "evidence_status": "verified",
+      "source_references": [
+        {
+          "mission": "Mars Reconnaissance Orbiter",
+          "instrument": "HiRISE",
+          "dataset": "MRO-M-HIRISE-5-DTM-V1.0",
+          "title": "HiRISE DTM product page: PSP_002387_1985",
+          "url": "https://www.uahirise.org/dtm/PSP_002387_1985"
+        }
+      ],
+      "spatial_resolution_m": 1.0096476466229,
+      "limitations": [
+        "The catalog entry describes a source footprint, not a point-level navigation coordinate.",
+        "No verified sample site or mineralogical composition is asserted.",
+        "The local raster is a processed 256 x 256 subset of the source product."
+      ],
+      "routable": false
     }
   ]
 }

@@ -14,6 +14,12 @@ from app.routing import NoPathError, RoutePlanner, SearchLimitExceeded
 from app.routing.schemas import RouteComparison, RouteResult
 from app.terrain import TerrainAnalyzer, TerrainConfig
 
+from .analysis_window import (
+    crop_region,
+    localize_point,
+    point_in_window,
+    resolve_analysis_window,
+)
 from .mission_builder import build_mission_response
 from .schemas import MissionRequest, MissionResponse
 from .scientific_targets import ScientificTarget, ScientificTargetCatalog
@@ -95,6 +101,10 @@ class MissionService:
             ) from exc
 
     def get_scientific_targets(self, region_id: str) -> tuple[ScientificTarget, ...]:
+        # Keep the catalog endpoint consistent with every other region-scoped
+        # endpoint: an unknown region is not the same as a known region with
+        # no documented targets.
+        self.load_region(region_id)
         return self.catalog.for_region(region_id)
 
     def _requested_targets(self, request: MissionRequest) -> tuple[ScientificTarget, ...]:
@@ -110,6 +120,28 @@ class MissionService:
                 )
             targets.append(target)
         return tuple(targets)
+
+    def _validate_target_destination(
+        self,
+        request: MissionRequest,
+        targets: tuple[ScientificTarget, ...],
+    ) -> None:
+        for target in targets:
+            if not target.is_navigable or target.position is None:
+                continue
+            if request.destination.as_tuple() != target.position:
+                raise MissionServiceError(
+                    "SCIENTIFIC_TARGET_COORDINATE_MISMATCH",
+                    "A navigable scientific target must be used at its verified grid coordinate.",
+                    status_code=422,
+                    details={
+                        "target_id": target.target_id,
+                        "expected_destination": {
+                            "row": target.position[0],
+                            "col": target.position[1],
+                        },
+                    },
+                )
 
     def _calculate_routes(self, request: MissionRequest, region, terrain) -> tuple[tuple[RouteResult, ...], RouteComparison | None]:
         start = request.start.as_tuple()
@@ -143,7 +175,10 @@ class MissionService:
                 exc.code,
                 "Route search reached its configured expansion limit.",
                 status_code=422,
-                details={"max_expanded_cells": exc.limit},
+                details={
+                    "max_expanded_cells": exc.limit,
+                    "suggestion": "Reduce the selected analysis area or choose closer mission points.",
+                },
             ) from exc
         except ValueError as exc:
             raise MissionServiceError(
@@ -154,10 +189,75 @@ class MissionService:
             ) from exc
 
     def create_mission_plan(self, request: MissionRequest) -> MissionResponse:
-        region = self.load_region(request.region_id)
-        terrain = self.terrain_for(region, request.terrain_config.as_dict())
+        parent_region = self.load_region(request.region_id)
+        try:
+            analysis_window = resolve_analysis_window(parent_region, request.analysis_window)
+        except ValueError as exc:
+            raise MissionServiceError(
+                "INVALID_ANALYSIS_WINDOW",
+                str(exc),
+                status_code=422,
+                details={"region_id": request.region_id},
+            ) from exc
+
+        parent_height, parent_width = parent_region.elevation_m.shape
+        for name, point in (("start", request.start.as_tuple()), ("destination", request.destination.as_tuple())):
+            if not (0 <= point[0] < parent_height and 0 <= point[1] < parent_width):
+                raise MissionServiceError(
+                    "INVALID_ROUTE_INPUT",
+                    f"{name.title()} is outside the {parent_height}x{parent_width} raster grid.",
+                    status_code=422,
+                    details={
+                        "point": {"row": point[0], "col": point[1]},
+                        "shape": [parent_height, parent_width],
+                    },
+                )
+            if not point_in_window(point, analysis_window):
+                raise MissionServiceError(
+                    "INVALID_GRID_POINT",
+                    f"{name.title()} must be inside the selected analysis window.",
+                    status_code=422,
+                    details={
+                        "point": {"row": point[0], "col": point[1]},
+                        "analysis_window": analysis_window.as_dict(),
+                    },
+                )
+
+        region = crop_region(parent_region, analysis_window)
+        local_request = request.model_copy(
+            update={
+                "start": request.start.model_copy(
+                    update={
+                        "row": localize_point(request.start.as_tuple(), analysis_window)[0],
+                        "col": localize_point(request.start.as_tuple(), analysis_window)[1],
+                    }
+                ),
+                "destination": request.destination.model_copy(
+                    update={
+                        "row": localize_point(request.destination.as_tuple(), analysis_window)[0],
+                        "col": localize_point(request.destination.as_tuple(), analysis_window)[1],
+                    }
+                ),
+                "analysis_window": None,
+            }
+        )
+
+        terrain = self.terrain_for(region, local_request.terrain_config.as_dict())
         targets = self._requested_targets(request)
-        routes, comparison = self._calculate_routes(request, region, terrain)
+        self._validate_target_destination(request, targets)
+        for target in targets:
+            if target.position is not None and not point_in_window(target.position, analysis_window):
+                raise MissionServiceError(
+                    "SCIENTIFIC_TARGET_OUTSIDE_ANALYSIS_WINDOW",
+                    "A selected scientific target is outside the analysis window.",
+                    status_code=422,
+                    details={
+                        "target_id": target.target_id,
+                        "analysis_window": analysis_window.as_dict(),
+                    },
+                )
+
+        routes, comparison = self._calculate_routes(local_request, region, terrain)
 
         limitations = [
             "Research prototype; not operational EVA navigation or safety guidance.",
@@ -168,6 +268,11 @@ class MissionService:
             limitations.append(
                 "One or more selected scientific targets are contextual only and have no verified navigation coordinate."
             )
+        if request.analysis_window is not None:
+            limitations.append(
+                "Routing was calculated inside the user-selected analysis window; "
+                "grid coordinates remain relative to the parent region."
+            )
 
         return build_mission_response(
             request,
@@ -177,6 +282,9 @@ class MissionService:
             data_sources=region.source_ids,
             methodology_version=self.methodology_version,
             limitations=limitations,
+            region=region,
+            terrain=terrain,
+            grid_offset=(analysis_window.row, analysis_window.col),
         )
 
 

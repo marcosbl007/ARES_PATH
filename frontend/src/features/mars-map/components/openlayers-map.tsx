@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
+import Collection from "ol/Collection.js";
 import Feature from "ol/Feature.js";
 import { createEmpty, extend, isEmpty, type Extent } from "ol/extent.js";
 import { defaults as defaultInteractions } from "ol/interaction/defaults.js";
@@ -9,6 +10,8 @@ import ImageLayer from "ol/layer/Image.js";
 import TileLayer from "ol/layer/Tile.js";
 import VectorLayer from "ol/layer/Vector.js";
 import OlMap from "ol/Map.js";
+import Modify from "ol/interaction/Modify.js";
+import Translate from "ol/interaction/Translate.js";
 import Projection from "ol/proj/Projection.js";
 import { addProjection } from "ol/proj.js";
 import ImageStatic from "ol/source/ImageStatic.js";
@@ -27,14 +30,19 @@ import Point from "ol/geom/Point.js";
 import Polygon from "ol/geom/Polygon.js";
 
 import { resolveApiResourceUrl } from "@/features/mars-map/services/region-api";
-import type { MapLayer, MarsMapController, MarsMapStatus } from "@/features/mars-map/types";
+import { createCenteredAnalysisWindow } from "@/features/mars-map/utils/analysis-window";
+import type { MapLayer, MapSelectionMode, MarsMapController, MarsMapStatus } from "@/features/mars-map/types";
 import {
   localGridPathToLonLat,
   localGridPointToLonLat,
+  localGridWindowToLonLatExtent,
+  localLonLatToGridPoint,
+  localLonLatToGridPosition,
   localRasterExtentInLonLat,
   parseMarsEquirectangularWkt,
 } from "@/features/mars-map/utils/mars-coordinates";
-import type { MissionResponse, RegionMetadata } from "@/shared/types/api-contract";
+import type { AnalysisWindow, GridPoint, MissionResponse, RegionMetadata } from "@/shared/types/api-contract";
+import { isPointInAnalysisWindow, normalizeAnalysisWindow } from "@/features/mars-map/utils/analysis-window";
 
 const MARS_TREK_PROJECTION_CODE = "EPSG:104905";
 const MARS_TREK_EXTENT: Extent = [-180, -90, 180, 90];
@@ -70,6 +78,12 @@ type OpenLayersMapProps = {
   mission: MissionResponse | null;
   regionId: string;
   controllerRef: React.MutableRefObject<MarsMapController | null>;
+  selectionMode: MapSelectionMode;
+  onMapPointSelect: (point: GridPoint, mode: MapSelectionMode) => void;
+  focusPoint: GridPoint | null;
+  analysisWindow: AnalysisWindow | null;
+  areaSelectionActive: boolean;
+  onAnalysisWindowChange: (analysisWindow: AnalysisWindow) => void;
   onStatusChange: (status: MarsMapStatus) => void;
 };
 
@@ -78,9 +92,59 @@ function extentFromValues(values: number[] | undefined): Extent | null {
   return [values[0], values[1], values[2], values[3]];
 }
 
+function rectangleCoordinates(extent: Extent): [number, number][][] {
+  return [[
+    [extent[0], extent[1]],
+    [extent[2], extent[1]],
+    [extent[2], extent[3]],
+    [extent[0], extent[3]],
+    [extent[0], extent[1]],
+  ]];
+}
+
+function sameAnalysisWindow(left: AnalysisWindow | null, right: AnalysisWindow): boolean {
+  return Boolean(
+    left
+    && left.row === right.row
+    && left.col === right.col
+    && left.height === right.height
+    && left.width === right.width,
+  );
+}
+
+function analysisWindowFromExtent(
+  extent: Extent,
+  metadata: RegionMetadata,
+  definition: ReturnType<typeof parseMarsEquirectangularWkt>,
+): AnalysisWindow | null {
+  if (!definition) return null;
+
+  const positions = [
+    [extent[0], extent[1]],
+    [extent[2], extent[1]],
+    [extent[2], extent[3]],
+    [extent[0], extent[3]],
+  ]
+    .map(([longitude, latitude]) => localLonLatToGridPosition(longitude, latitude, metadata, definition))
+    .filter((position): position is { row: number; col: number } => position !== null);
+  if (positions.length !== 4) return null;
+
+  const rows = positions.map((position) => position.row);
+  const columns = positions.map((position) => position.col);
+  const row = Math.floor(Math.min(...rows) + 1e-6);
+  const col = Math.floor(Math.min(...columns) + 1e-6);
+  const rowEnd = Math.ceil(Math.max(...rows) - 1e-6);
+  const colEnd = Math.ceil(Math.max(...columns) - 1e-6);
+  return normalizeAnalysisWindow({
+    row,
+    col,
+    height: Math.max(1, rowEnd - row),
+    width: Math.max(1, colEnd - col),
+  }, metadata);
+}
+
 function createWmtsLayer(
   layer: MapLayer,
-  onStatusChange: (status: MarsMapStatus) => void,
 ): TileLayer<WMTS> | null {
   if (!layer.tileUrlTemplate || !layer.wmtsEndpoint || !layer.wmtsCrs) return null;
 
@@ -111,13 +175,17 @@ function createWmtsLayer(
     transition: 0,
     attributions: "NASA / Mars Trek / USGS / JPL",
   });
-  source.on("tileloadstart", () => onStatusChange("loading"));
-  source.on("tileloadend", () => onStatusChange("ready"));
-  source.on("tileloaderror", () => onStatusChange("error"));
+  // Mars Trek is an optional remote visual context. A transient tile failure
+  // must not hide the validated local DTM/ROI or mark the whole workspace as
+  // unusable. The layer explorer already exposes the remote limitations.
+  source.on("tileloadstart", () => undefined);
+  source.on("tileloadend", () => undefined);
+  source.on("tileloaderror", () => undefined);
 
   return new TileLayer({
     source,
     visible: layer.active,
+    opacity: layer.opacity ?? 1,
     extent: extentFromValues(layer.coverageExtent) ?? undefined,
     zIndex: layer.id === "hirise" ? 11 : 10,
   });
@@ -145,7 +213,7 @@ function createLocalImageLayer(
   return new ImageLayer({
     source,
     visible: layer.active,
-    opacity: layer.id === "elevation" ? 0.5 : 0.88,
+    opacity: layer.opacity ?? (layer.id === "elevation" ? 0.5 : layer.id === "slope" ? 0.55 : 0.88),
     zIndex: layer.id === "elevation" ? 21 : 20,
   });
 }
@@ -193,12 +261,44 @@ export function OpenLayersMap({
   mission,
   regionId,
   controllerRef,
+  selectionMode,
+  onMapPointSelect,
+  focusPoint,
+  analysisWindow,
+  areaSelectionActive,
+  onAnalysisWindowChange,
   onStatusChange,
 }: OpenLayersMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<OlMap | null>(null);
   const layerRegistryRef = useRef(new globalThis.Map<string, TileLayer<WMTS> | ImageLayer<ImageStatic>>());
   const overlaySourceRef = useRef<VectorSource | null>(null);
+  const areaInteractionsRef = useRef<{ modify: Modify; translate: Translate } | null>(null);
+  const selectionModeRef = useRef(selectionMode);
+  const onMapPointSelectRef = useRef(onMapPointSelect);
+  const analysisWindowRef = useRef(analysisWindow);
+  const areaSelectionActiveRef = useRef(areaSelectionActive);
+  const onAnalysisWindowChangeRef = useRef(onAnalysisWindowChange);
+
+  useEffect(() => {
+    selectionModeRef.current = selectionMode;
+  }, [selectionMode]);
+
+  useEffect(() => {
+    onMapPointSelectRef.current = onMapPointSelect;
+  }, [onMapPointSelect]);
+
+  useEffect(() => {
+    analysisWindowRef.current = analysisWindow;
+  }, [analysisWindow]);
+
+  useEffect(() => {
+    areaSelectionActiveRef.current = areaSelectionActive;
+  }, [areaSelectionActive]);
+
+  useEffect(() => {
+    onAnalysisWindowChangeRef.current = onAnalysisWindowChange;
+  }, [onAnalysisWindowChange]);
 
   useEffect(() => {
     if (
@@ -220,13 +320,13 @@ export function OpenLayersMap({
 
     for (const layer of layers) {
       const olLayer = layer.sourceKind === "mars-trek"
-        ? createWmtsLayer(layer, onStatusChange)
+        ? createWmtsLayer(layer)
         : createLocalImageLayer(layer, metadata, definition, onStatusChange);
       if (!olLayer) continue;
 
       layerRegistry.set(layer.id, olLayer);
       mapLayers.push(olLayer);
-      if (layer.sourceKind === "mars-trek") {
+      if (layer.sourceKind === "mars-trek" && layer.active) {
         const coverageExtent = extentFromValues(layer.coverageExtent);
         if (coverageExtent) extend(regionalExtent, coverageExtent);
       }
@@ -236,6 +336,9 @@ export function OpenLayersMap({
       const localExtent = localRasterExtentInLonLat(metadata, definition);
       extend(regionalExtent, localExtent);
     }
+    const datasetExtent = definition && localLayers.length > 0
+      ? localRasterExtentInLonLat(metadata, definition)
+      : regionalExtent;
 
     const overlaySource = new VectorSource();
     overlaySourceRef.current = overlaySource;
@@ -250,7 +353,7 @@ export function OpenLayersMap({
       zoom: 5,
       minZoom: 0,
       maxZoom: MARS_TREK_MATRIX_COUNT - 1,
-      extent: MARS_TREK_EXTENT,
+      extent: isEmpty(datasetExtent) ? MARS_TREK_EXTENT : datasetExtent,
       constrainOnlyCenter: true,
       showFullExtent: true,
     });
@@ -264,8 +367,40 @@ export function OpenLayersMap({
 
     mapRef.current = map;
     map.updateSize();
-    if (!isEmpty(regionalExtent)) {
-      view.fit(regionalExtent, {
+
+    // The computational viewport is ready as soon as the validated local
+    // metadata and projection are available. Remote WMTS availability is
+    // independent and should not gate point selection or terrain inspection.
+    if (definition && localLayers.length > 0) onStatusChange("ready");
+
+    const handleContainerClick = (event: MouseEvent) => {
+      if (!definition || areaSelectionActiveRef.current) return;
+
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const coordinate = map.getCoordinateFromPixel([
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+      ]);
+      const point = localLonLatToGridPoint(
+        coordinate[0],
+        coordinate[1],
+        metadata,
+        definition,
+      );
+      if (
+        point
+        && (!analysisWindowRef.current || isPointInAnalysisWindow(point, analysisWindowRef.current))
+      ) {
+        onMapPointSelectRef.current(point, selectionModeRef.current);
+      }
+    };
+    const mapContainer = containerRef.current;
+    mapContainer.addEventListener("click", handleContainerClick, true);
+
+    if (!isEmpty(datasetExtent)) {
+      view.fit(datasetExtent, {
         padding: [78, 78, 78, 78],
         maxZoom: 11,
         duration: 0,
@@ -276,16 +411,26 @@ export function OpenLayersMap({
       zoomIn: () => view.animate({ zoom: Math.min((view.getZoom() ?? 0) + 1, MARS_TREK_MATRIX_COUNT - 1), duration: 180 }),
       zoomOut: () => view.animate({ zoom: Math.max((view.getZoom() ?? 0) - 1, 0), duration: 180 }),
       resetView: () => {
-        if (!isEmpty(regionalExtent)) {
-          view.fit(regionalExtent, { padding: [78, 78, 78, 78], maxZoom: 11, duration: 220 });
+        if (!isEmpty(datasetExtent)) {
+          view.fit(datasetExtent, { padding: [78, 78, 78, 78], maxZoom: 11, duration: 220 });
         }
       },
       resetRotation: () => view.setRotation(0),
       fitComputationalExtent: () => {
         if (definition) {
-          view.fit(localRasterExtentInLonLat(metadata, definition), {
+          const selectedWindow = analysisWindowRef.current ?? createCenteredAnalysisWindow(metadata);
+          view.fit(localGridWindowToLonLatExtent(selectedWindow, metadata, definition), {
             padding: [110, 110, 110, 110],
             maxZoom: 17,
+            duration: 220,
+          });
+        }
+      },
+      focusGridPoint: (point) => {
+        if (definition) {
+          view.animate({
+            center: localGridPointToLonLat(point, metadata, definition),
+            zoom: Math.max(view.getZoom() ?? 0, 14),
             duration: 220,
           });
         }
@@ -294,8 +439,8 @@ export function OpenLayersMap({
 
     const frame = window.requestAnimationFrame(() => {
       map.updateSize();
-      if (!isEmpty(regionalExtent)) {
-        view.fit(regionalExtent, { padding: [78, 78, 78, 78], maxZoom: 11, duration: 0 });
+      if (!isEmpty(datasetExtent)) {
+        view.fit(datasetExtent, { padding: [78, 78, 78, 78], maxZoom: 11, duration: 0 });
       }
     });
 
@@ -303,7 +448,13 @@ export function OpenLayersMap({
       window.cancelAnimationFrame(frame);
       controllerRef.current = null;
       overlaySourceRef.current = null;
+      if (areaInteractionsRef.current) {
+        map.removeInteraction(areaInteractionsRef.current.modify);
+        map.removeInteraction(areaInteractionsRef.current.translate);
+        areaInteractionsRef.current = null;
+      }
       layerRegistry.clear();
+      mapContainer.removeEventListener("click", handleContainerClick, true);
       map.setTarget(undefined);
       map.dispose();
       mapRef.current = null;
@@ -314,14 +465,32 @@ export function OpenLayersMap({
 
   useEffect(() => {
     for (const layer of layers) {
-      layerRegistryRef.current.get(layer.id)?.setVisible(layer.active);
+      const mapLayer = layerRegistryRef.current.get(layer.id);
+      mapLayer?.setVisible(layer.active);
+      if (layer.opacity !== undefined) mapLayer?.setOpacity(layer.opacity);
     }
   }, [layers]);
+
+  useEffect(() => {
+    if (!focusPoint || !metadata || !mapRef.current) return;
+    const definition = parseMarsEquirectangularWkt(metadata.crs_wkt);
+    if (!definition) return;
+    mapRef.current.getView().animate({
+      center: localGridPointToLonLat(focusPoint, metadata, definition),
+      zoom: Math.max(mapRef.current.getView().getZoom() ?? 0, 14),
+      duration: 220,
+    });
+  }, [focusPoint, metadata]);
 
   useEffect(() => {
     const source = overlaySourceRef.current;
     if (!source) return;
 
+    if (areaInteractionsRef.current && mapRef.current) {
+      mapRef.current.removeInteraction(areaInteractionsRef.current.modify);
+      mapRef.current.removeInteraction(areaInteractionsRef.current.translate);
+      areaInteractionsRef.current = null;
+    }
     source.clear();
     if (!metadata) return;
 
@@ -333,19 +502,61 @@ export function OpenLayersMap({
 
     const localExtent = localRasterExtentInLonLat(metadata, definition);
     const boundaryFeature = new Feature({
-      geometry: new Polygon([[
-        [localExtent[0], localExtent[1]],
-        [localExtent[2], localExtent[1]],
-        [localExtent[2], localExtent[3]],
-        [localExtent[0], localExtent[3]],
-        [localExtent[0], localExtent[1]],
-      ]]),
+      geometry: new Polygon(rectangleCoordinates(localExtent)),
     });
     boundaryFeature.setStyle(new Style({
-      stroke: new Stroke({ color: "#fdb813", width: 2, lineDash: [8, 6] }),
-      fill: new Fill({ color: "rgba(253, 184, 19, 0.07)" }),
+      stroke: new Stroke({ color: "rgba(91, 192, 235, 0.6)", width: 1, lineDash: [5, 7] }),
+      fill: new Fill({ color: "rgba(91, 192, 235, 0.025)" }),
     }));
     source.addFeature(boundaryFeature);
+
+    const selectedWindow = analysisWindow ?? createCenteredAnalysisWindow(metadata);
+    const selectedExtent = localGridWindowToLonLatExtent(selectedWindow, metadata, definition);
+    const analysisFeature = new Feature({
+      geometry: new Polygon(rectangleCoordinates(selectedExtent)),
+    });
+    analysisFeature.setStyle(new Style({
+      stroke: new Stroke({
+        color: areaSelectionActive ? "#fdb813" : "#5bc0eb",
+        width: areaSelectionActive ? 3 : 2,
+        lineDash: areaSelectionActive ? undefined : [8, 6],
+      }),
+      fill: new Fill({
+        color: areaSelectionActive ? "rgba(253, 184, 19, 0.12)" : "rgba(91, 192, 235, 0.06)",
+      }),
+    }));
+    source.addFeature(analysisFeature);
+
+    if (areaSelectionActive && mapRef.current) {
+      const features = new Collection([analysisFeature]);
+      const modify = new Modify({
+        features,
+        insertVertexCondition: () => false,
+        deleteCondition: () => false,
+      });
+      const translate = new Translate({ features });
+      const normalizeFeatureGeometry = () => {
+        const geometry = analysisFeature.getGeometry();
+        if (!geometry) return;
+        const nextWindow = analysisWindowFromExtent(geometry.getExtent(), metadata, definition);
+        if (!nextWindow) return null;
+        geometry.setCoordinates(rectangleCoordinates(
+          localGridWindowToLonLatExtent(nextWindow, metadata, definition),
+        ));
+        return nextWindow;
+      };
+      const publishWindow = () => {
+        const nextWindow = normalizeFeatureGeometry();
+        if (nextWindow && !sameAnalysisWindow(analysisWindowRef.current, nextWindow)) {
+          onAnalysisWindowChangeRef.current(nextWindow);
+        }
+      };
+      modify.on("modifyend", publishWindow);
+      translate.on("translateend", publishWindow);
+      mapRef.current.addInteraction(translate);
+      mapRef.current.addInteraction(modify);
+      areaInteractionsRef.current = { modify, translate };
+    }
 
     for (const route of mission?.routes ?? []) {
       const coordinates = localGridPathToLonLat(route.grid_path, metadata, definition);
@@ -384,7 +595,7 @@ export function OpenLayersMap({
       targetFeature.setStyle(markerStyle("#fdb813", target.name, "diamond"));
       source.addFeature(targetFeature);
     }
-  }, [metadata, mission, onStatusChange]);
+  }, [analysisWindow, areaSelectionActive, metadata, mission, onStatusChange]);
 
   return (
     <div

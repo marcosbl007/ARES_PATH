@@ -18,7 +18,7 @@
 5. No inventar resultados científicos, pendientes, longitudes, fotografías georreferenciadas ni objetivos de misión. Los mocks se limitan a tests/desarrollo y deben identificarse visiblemente como *synthetic/demo*.
 6. No presentar ARES PATH como sistema de navegación operacional certificado: es un prototipo de apoyo a la planificación científica; las rutas no garantizan seguridad de un astronauta.
 7. El backend calcula rutas, pendientes, transitabilidad y métricas. El frontend valida entradas, gestiona interacción, consume respuestas, transforma coordenadas **solo con metadatos correctos** y presenta los resultados.
-8. Construir primero el flujo completo **seleccionar origen/destino → enviar misión → recibir dos rutas → visualizar comparación y fuentes**. Luego añadir objetivos científicos, PWA y guardado offline.
+8. Construir primero el flujo completo **seleccionar origen/destino → enviar misión → recibir dos rutas → visualizar comparación y fuentes**. El flujo principal, los objetivos científicos y la consulta offline de misiones precalculadas ya están integrados.
 9. Aislar componentes comunes de la lógica de dominio; **no forzar todos los componentes dentro de Atomic Design**. Las piezas que conocen rutas, Marte o misiones viven en su feature.
 10. Cada cambio debe incluir tipos estrictos, validación de datos externos, estado de error/carga/vacío, pruebas relevantes y ausencia de secretos en el cliente.
 11. La versión funcional y los recursos científicos reales tienen prioridad sobre animaciones, 3D, chatbots o funcionalidades vistosas.
@@ -28,7 +28,7 @@
 
 **Problema oficial:** las misiones robóticas de NASA han producido imágenes y datos diversos de Marte; una futura caminata humana requiere reunir información científica hiperlocal para planificar un recorrido con objetivos de exploración y restricciones ambientales/topográficas.
 
-**Propuesta acordada:** aplicación web progresiva (PWA) para explorar una zona seleccionada de **Jezero**, elegir origen y destino, consultar capas científicas, solicitar rutas al backend FastAPI y comparar la alternativa de menor distancia con una alternativa sensible al terreno. Posteriormente permitir guardar una misión previamente calculada con sus recursos para consultarla sin conexión (**Offline Mission Pack**).
+**Propuesta acordada:** aplicación web progresiva (PWA) para explorar una zona seleccionada de **Jezero**, elegir origen y destino, consultar capas científicas, solicitar rutas al backend FastAPI y comparar la alternativa de menor distancia con una alternativa sensible al terreno. También permite guardar, exportar, importar y consultar sin conexión una misión previamente calculada (**Offline Mission Pack**), sin calcular rutas nuevas offline.
 
 **Alcance inicial del frontend:**
 - Obtener regiones, capas y metadatos del área de trabajo desde FastAPI.
@@ -37,7 +37,7 @@
 - Consultar y seleccionar objetivos científicos **verificados** y sus referencias si el backend los proporciona.
 - Enviar planificación y renderizar *exactamente* las rutas y las métricas que retorne la API.
 - Mostrar incertidumbres, limitaciones de resolución, fuentes y estados de errores de forma comprensible.
-- Preparar instalación PWA; el guardado y la lectura offline de misiones constituyen una **fase posterior**, sin bloquear el flujo principal.
+- Instalación PWA y consulta offline de Mission Packs; la instalación nativa depende del navegador y el paquete diferencia contenido cacheado de recursos `online_only`.
 
 **Fuera del alcance inicial:** seguimiento de posición real de astronautas, GPS en Marte, predicción operacional de radiación, cálculo de nuevas rutas completamente offline, hazard detection de rocas pequeñas no resueltas por el DTM, simulador EVA certificado, sincronización compleja y autenticación innecesaria.
 
@@ -59,7 +59,7 @@ No suponer que una foto, mosaico visual o una tesela WMTS sea automáticamente u
 - **Zod** (u otro validador pactado) para validar JSON de APIs y persistencia.
 - **Lucide React** para iconos neutrales, sujeto al diseño final.
 - **Vitest + React Testing Library** para unitarias y componentes; **Playwright** para E2E prioritarios.
-- **Service worker + Cache Storage + IndexedDB** cuando se implemente Offline Mission Pack. `manifest.ts` puede prepararse antes, sin prometer offline.
+- **Service worker + Cache Storage + IndexedDB** para el Offline Mission Pack. `manifest.ts` y el flujo de instalación se validan en build de producción.
 - Cliente REST basado en `fetch`, unificado en `shared/api/http-client.ts`. Elegir librerías adicionales solo con justificación (no introducir Redux/Zustand/TanStack Query por defecto).
 
 ### Inicio del proyecto (pnpm)
@@ -115,7 +115,7 @@ frontend/
 │   │   ├── mission-planning/
 │   │   ├── route-analysis/
 │   │   ├── science-targets/
-│   │   ├── offline-missions/      # fase posterior
+│   │   ├── offline-missions/      # Mission Packs e inspección offline
 │   │   └── mission-reports/       # fase posterior
 │   ├── shared/
 │   │   ├── api/
@@ -193,6 +193,8 @@ GET  /api/data/regions
 GET  /api/data/regions/{region_id}
 GET  /api/data/regions/{region_id}/layers
 GET  /api/missions/scientific-targets
+GET  /api/missions/scientific-targets/{target_id}
+POST /api/terrain/sample
 POST /api/missions/plan
 ```
 
@@ -284,7 +286,7 @@ Antes de conectar el mapa, acordar con la persona 1 y la persona 4:
 6. Validar respuesta; almacenar en estado de la feature sin modificar resultados.
 7. Representar ambas rutas sobre el mismo sistema cartográfico y contrastar métricas y limitaciones.
 8. Permitir revisar fuente científica y errores sin confundir datos simulados con observaciones.
-9. Solo en fase posterior: guardar paquete offline y poder abrirlo desconectado.
+9. Guardar el Mission Pack, desconectar y abrirlo desde IndexedDB sin crear rutas nuevas.
 
 **Criterio de aceptación:** una persona puede completar el flujo y explicar por qué las dos rutas difieren, de dónde vienen los datos y qué no garantiza la herramienta. Si no hay ruta, el producto debe mostrar un resultado honesto, no una línea ficticia.
 
@@ -310,7 +312,7 @@ Antes de conectar el mapa, acordar con la persona 1 y la persona 4:
 - Integrar objetivos verificados y referencias NASA.
 - Añadir información de dataset y limitaciones científicas.
 
-### Fase E — PWA y Offline Mission Pack (si el MVP funciona)
+### Fase E — PWA y Offline Mission Pack (implementada con alcance explícito)
 - Manifest e instalación en un origen HTTPS (localhost en desarrollo).
 - Guardar paquetes completos y consultarlos offline; sin rutas nuevas offline.
 - Comprobar que los mapas/fuentes que requiere la misión **realmente están en caché**.
@@ -322,7 +324,7 @@ Antes de conectar el mapa, acordar con la persona 1 y la persona 4:
 
 **Regla de prioridad:** si el backend y su mapa aún no están integrados, no emplear tiempo en animaciones, instalación PWA, exportación ni interfaces alternativas.
 
-## 7. PWA / Offline Mission Pack: contrato previsto, no implementado
+## 7. PWA / Offline Mission Pack: contrato implementado con alcance explícito
 
 **Objetivo:** misión calculada online → usuario la guarda → navegador desconectado → misión y mapa precargados siguen disponibles para consulta. No afirmar capacidad de navegación autónoma en Marte ni recálculo sin conexión.
 
@@ -334,6 +336,14 @@ Antes de conectar el mapa, acordar con la persona 1 y la persona 4:
 - Información clara de disponibilidad, tamaño y fecha de los datos. Diferenciar *contenido guardado* de *condiciones actuales*.
 
 **Persistencia:** IndexedDB para metadatos y paquetes JSON; Cache Storage para recursos servibles por service worker. Manejar `QuotaExceededError`, versiones de esquema, duplicados, integridad del paquete y posibilidad de borrar/actualizar.
+
+**Estado implementado (2026-11-15):** el frontend guarda, valida, exporta e
+importa Mission Packs JSON. El paquete incluye la respuesta de misión, el
+perfil de elevación y una vista previa raster local compacta cuando el
+backend la entrega. El service worker versionado cachea el shell, los assets
+runtime, respuestas GET exitosas y teselas Mars Trek ya visitadas. La fuente
+GeoTIFF y las teselas WMTS remotas se declaran `online_only`; no se afirma que
+sean parte del mapa offline ni se calculan rutas nuevas sin FastAPI.
 
 **Comportamiento requerido:**
 - `Save for Offline` solo confirma éxito después de persistir datos y recursos críticos.
@@ -375,7 +385,7 @@ Antes de conectar el mapa, acordar con la persona 1 y la persona 4:
 - No georreferenciar automáticamente fotos de rover sin metadatos.
 - Selecciones inválidas o objetivos fuera del AOI provocan mensajes claros.
 
-### 8.6 `offline-missions` (fase posterior)
+### 8.6 `offline-missions`
 - Guardar → desconectar → recargar → abrir paquete completo sin red.
 - Test de integridad de capas, limpieza de caché y datos expirados/incompletos.
 - Fallo de cuota, archivo ausente o versión incompatible produce error explícito.
@@ -434,7 +444,7 @@ Ramas sugeridas (frontend):
 
 ## 11. Riesgos y decisiones pendientes
 
-**Confirmado:** Jezero; Next.js/React/TypeScript; Tailwind; pnpm; Atomic Design + Features; FastAPI REST; análisis de dos rutas; PWA/offline como extensión.
+**Confirmado:** datasets regionales de Jezero; Next.js/React/TypeScript; Tailwind; pnpm; Atomic Design + Features; FastAPI REST; análisis de dos rutas; PWA/offline para consulta de misiones precalculadas.
 
 **Pendiente de confirmar con el backend:**
 - Sector concreto de Jezero, ID real, extensión geográfica, raster/capa de referencia, CRS y transformación.
@@ -449,6 +459,17 @@ Ramas sugeridas (frontend):
 
 **Regla de cambio:** documentar una decisión de arquitectura en este archivo y, si afecta al backend, actualizar también `.CONTEXT/AGENTS.md` tras acuerdo. No completar huecos mediante supuestos silenciosos.
 
+### 2026-11-15 — ROI acotado al dataset regional
+
+La selección de área no es una búsqueda libre sobre todo Marte. El usuario
+elige un dataset regional disponible —una de las cuatro ventanas HiRISE o una
+de las cuatro regiones CTX amplias de Jezero—; dentro del dataset activo puede
+mover, ampliar o reducir el ROI. El frontend normaliza el `analysis_window` a
+la forma y límites del raster, rechaza clics fuera del dataset/ROI y envía
+`region_id` más la ventana al backend. El backend conserva la validación como
+autoridad final y calcula las rutas únicamente dentro de la ventana
+seleccionada.
+
 ## 12. Entrega de MVP: definición de terminado
 
 La entrega frontend queda lista cuando:
@@ -462,7 +483,7 @@ La entrega frontend queda lista cuando:
 - [ ] Tiene pruebas para transformación espacial y contrato de misiones.
 - [ ] Está desplegado en URL accesible públicamente para el jurado.
 - [ ] Está documentado el origen de recursos NASA/USGS y el carácter no operacional del prototipo.
-- [ ] Si se anuncia PWA/offline: la instalación y una misión guardada pasan la prueba real sin red; de lo contrario, describirlo solo como función futura.
+- [x] Si se anuncia PWA/offline: la instalación/registro y una misión guardada pasan la prueba real sin red en Chromium de producción; la disponibilidad del prompt nativo depende del navegador.
 
 **Prioridad de las próximas horas:** cerrar el contrato y los metadatos cartográficos con backend, implementar mapa y cliente de misiones con fixtures explícitos, integrar una misión real y solo entonces invertir tiempo en PWA y presentación visual.
 
@@ -470,4 +491,4 @@ La entrega frontend queda lista cuando:
 
 ## 13. Resumen para un agente que se incorpore
 
-> Se trabaja en el **frontend** de ARES PATH, prototipo NASA Space Apps Challenge 2026 para planificar caminatas científicas en **Jezero, Marte**. Stack acordado: Next.js App Router, React, TypeScript estricto, Tailwind, OpenLayers candidato, **pnpm**, Atomic Design únicamente para UI común y organización por features para lógica de producto. Backend: FastAPI, contrato actual en `.CONTEXT/AGENTS.md`, especialmente sección 4.6 (`grid_row_col`, `grid_path`, `POST /api/missions/plan`, dos rutas y métricas). No inventar datos científicos ni calcular rutas en el navegador. PWA y Offline Mission Pack están previstos como fase posterior, para consultar misiones precalculadas sin red. **No existe todavía una decisión sobre layout o diseño visual**: no proponer ni implementar estructura visual sin una instrucción nueva. Ante incertidumbre de coordenadas, datasets, URLs o contrato: detener esa integración concreta, usar fixtures etiquetados en pruebas y coordinar con el responsable del backend.
+> Se trabaja en el **frontend** de ARES PATH, prototipo NASA Space Apps Challenge 2026 para planificar caminatas científicas en **Jezero, Marte**. Stack acordado: Next.js App Router, React, TypeScript estricto, Tailwind, OpenLayers candidato, **pnpm**, Atomic Design únicamente para UI común y organización por features para lógica de producto. Backend: FastAPI, contrato actual en `.CONTEXT/AGENTS.md`, especialmente sección 4.6 (`grid_row_col`, `grid_path`, `POST /api/missions/plan`, dos rutas y métricas). El usuario elige un dataset regional y el ROI solo puede moverse o redimensionarse dentro de ese raster; no se procesa selección fuera del dataset activo. No inventar datos científicos ni calcular rutas en el navegador. PWA y Offline Mission Pack permiten consultar misiones precalculadas sin red; las fuentes WMTS/GeoTIFF no se presentan como offline si no están cacheadas. **No existe todavía una decisión sobre layout o diseño visual**: no proponer ni implementar estructura visual sin una instrucción nueva. Ante incertidumbre de coordenadas, datasets, URLs o contrato: detener esa integración concreta, usar fixtures etiquetados en pruebas y coordinar con el responsable del backend.

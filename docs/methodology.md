@@ -47,7 +47,11 @@ La implementación opera sobre un `RegionData` validado y no crea observaciones 
 - `shortest`: usa la misma máscara base y multiplicador unitario. Su valor de `cost` coincide numéricamente con la distancia horizontal en metros.
 - `terrain_aware`: usa la misma máscara base y `terrain.cost_multiplier` de P2, por lo que evita pendientes costosas cuando el desvío compensa. Su `cost` es adimensional.
 - Si no existe ruta, se lanza `NoPathError` con código `NO_PATH`; no se devuelve una lista vacía.
-- `max_expanded_cells` limita la búsqueda (un millón por defecto en el planificador). Al superarlo se lanza `SearchLimitExceeded` con código `SEARCH_LIMIT`.
+- `max_expanded_cells` limita la búsqueda. El planificador escala automáticamente
+  ese presupuesto al tamaño del raster regional seleccionado (hasta 8 millones
+  de celdas), para no rechazar artificialmente un ROI válido por usar un límite
+  fijo de un millón. Al superar el presupuesto se lanza `SearchLimitExceeded`
+  con código `SEARCH_LIMIT`.
 
 ### Métricas y comparación
 
@@ -76,7 +80,7 @@ Las coordenadas del ejemplo son ficticias y solo ilustran la interfaz. P4 debe v
 
 ## Comprobación con el recorte real de Jezero
 
-P1 seleccionó `jezero_fan_256`, asociado al producto HiRISE `DTEEC_002387_1985_003798_1985_A01`. Se descargó de nuevo el IMG indicado en `backend/data/sources.json` y se reprodujo el recorte de 256 × 256 celdas. Los SHA256 del IMG y del TIFF reconstruido coincidieron exactamente con los valores del sidecar `jezero_fan_256_elevation.json`. El TIFF es local y está excluido de Git; un nuevo checkout debe reproducirlo según `docs/nasa-data-sources.md`.
+P1 seleccionó `jezero_fan_256`, asociado al producto HiRISE `DTEEC_002387_1985_003798_1985_A01`. Se descargó de nuevo el IMG indicado en `backend/data/sources.json` y se reprodujo el recorte de 256 × 256 celdas. Los SHA256 del IMG y del TIFF reconstruido coincidieron exactamente con los valores del sidecar `jezero_fan_256_elevation.json`. El TIFF procesado está versionado en este checkout; un nuevo checkout puede reproducirlo desde el IMG fuente según `docs/nasa-data-sources.md`.
 
 Para una celda interior `(row=128, col=128)`, las elevaciones originales en metros son: izquierda `-2425.36181640625`, derecha `-2425.353271484375`, arriba `-2425.40966796875` y abajo `-2425.2978515625`. Con `pixel_size_x_m = pixel_size_y_m = 1.0096476466229`, la demostración del cálculo es:
 
@@ -106,4 +110,4 @@ summary = get_terrain_statistics(region, config)
 
 El núcleo de P2 está implementado y probado: pendiente, máscara de transitabilidad, multiplicadores de coste, perfil y estadísticas. La suite de terreno pasó 16 pruebas y la suite conjunta P1+P2 pasó 35 pruebas el 14 de noviembre de 2026. Sobre el recorte real, el mapa completo de pendientes coincidió con el cálculo de referencia de `np.gradient` en todas las celdas válidas (diferencia máxima 0°). Un perfil real de tres celdas `(128,128) → (128,129) → (129,130)` produjo 2.4375050417 m de distancia horizontal, 0.051025390625 m de ascenso y 0 m de descenso; es una comprobación del cálculo, no una ruta optimizada.
 
-La integración P2→P3 ya pasó las pruebas sintéticas y una ejecución sobre el DTM real `jezero_fan_256` en un entorno con `rasterio` y el TIFF local. P3 consume `terrain.traversable`, `terrain.cost_multiplier` y los tamaños de píxel de `RegionData`; las rutas y métricas se obtuvieron del recorte real para los puntos internos `(10,20)` y `(80,65)`. Los valores y la comparación bajo la misma función de coste se registran en `docs/validation.md`. P4 debe coordinar los modelos HTTP y decidir el registro de los endpoints de rutas y de los tres endpoints de terreno definidos en `AGENTS.md`; todavía no están publicados. El TIFF local reproducible sigue excluido de Git, como describe `docs/nasa-data-sources.md`.
+La integración P2→P3 ya pasó las pruebas sintéticas y una ejecución HTTP sobre el DTM real `jezero_fan_256` con `rasterio` y los TIFF versionados. P3 consume `terrain.traversable`, `terrain.cost_multiplier` y los tamaños de píxel de `RegionData`; las rutas y métricas se obtuvieron del recorte real para los puntos internos `(10,20)` y `(80,65)`. Los valores y la comparación bajo la misma función de coste se registran en `docs/validation.md`. El alcance sigue siendo exploratorio: no es navegación EVA ni una puntuación de seguridad.

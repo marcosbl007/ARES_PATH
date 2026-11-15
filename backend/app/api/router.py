@@ -10,6 +10,7 @@ from collections.abc import Iterable
 from dataclasses import asdict
 from pathlib import Path
 
+import numpy as np
 from fastapi import APIRouter, HTTPException, Query
 
 from app.missions.mission_service import (
@@ -17,6 +18,15 @@ from app.missions.mission_service import (
     MissionServiceError,
     create_mission_service,
 )
+from app.missions.analysis_window import (
+    crop_region,
+    globalize_path,
+    localize_path,
+    localize_point,
+    point_in_window,
+    resolve_analysis_window,
+)
+from app.missions.mission_builder import build_target_response
 from app.missions.router import create_router as create_missions_router
 from app.missions.schemas import (
     ElevationProfileResponse,
@@ -27,6 +37,8 @@ from app.missions.schemas import (
     RouteResponse,
     TerrainConfigRequest,
     TerrainProfileRequest,
+    TerrainSampleRequest,
+    TerrainSampleResponse,
     TerrainStatisticsResponse,
     TraversabilityRequest,
     TraversabilityResponse,
@@ -64,6 +76,19 @@ def _build_terrain_router(service: MissionService) -> APIRouter:
         except MissionServiceError as error:
             raise _mission_error(error) from error
 
+    def region_for_window(region_id: str, requested_window):
+        parent_region = load_region(region_id)
+        try:
+            window = resolve_analysis_window(parent_region, requested_window)
+        except ValueError as error:
+            raise _terrain_error(
+                "INVALID_ANALYSIS_WINDOW",
+                str(error),
+                422,
+                {"region_id": region_id},
+            ) from error
+        return crop_region(parent_region, window), window
+
     def analyzer(config: TerrainConfigRequest) -> TerrainAnalyzer:
         try:
             return TerrainAnalyzer(TerrainConfig.from_value(config.as_dict()))
@@ -90,20 +115,116 @@ def _build_terrain_router(service: MissionService) -> APIRouter:
         return TerrainStatisticsResponse.model_validate(asdict(statistics))
 
     @router.post(
+        "/sample",
+        response_model=TerrainSampleResponse,
+        summary="Inspect elevation and slope at one raster cell",
+    )
+    def sample(request: TerrainSampleRequest) -> TerrainSampleResponse:
+        region, analysis_window = region_for_window(request.region_id, request.analysis_window)
+        absolute_point = request.point.as_tuple()
+        if not point_in_window(absolute_point, analysis_window):
+            raise _terrain_error(
+                "INVALID_GRID_POINT",
+                "Point is outside the selected analysis window.",
+                422,
+                {
+                    "point": {"row": absolute_point[0], "col": absolute_point[1]},
+                    "analysis_window": analysis_window.as_dict(),
+                },
+            )
+        row, col = localize_point(absolute_point, analysis_window)
+
+        try:
+            terrain_analyzer = analyzer(request.terrain_config)
+            terrain = terrain_analyzer.analyze(region)
+            slope = terrain_analyzer.calculate_slope(region)
+        except ValueError as error:
+            raise _terrain_error("INVALID_TERRAIN_CONFIG", str(error), 422, {}) from error
+
+        x_m, y_m = region.cell_center(row, col)
+        is_valid = bool(region.valid_mask[row, col])
+        elevation_m = float(region.elevation_m[row, col]) if is_valid else None
+        slope_value = float(slope[row, col]) if np.isfinite(slope[row, col]) else None
+        coverage_status = "valid" if is_valid and slope_value is not None else "nodata"
+
+        nearby_targets = []
+        for target in service.catalog.for_region(request.region_id):
+            if target.position is None or not target.is_navigable:
+                continue
+            target_distance = float(
+                ((target.position[0] - absolute_point[0]) ** 2
+                 + (target.position[1] - absolute_point[1]) ** 2) ** 0.5
+            )
+            if target_distance <= 10.0:
+                nearby_targets.append(target)
+
+        try:
+            layer_descriptors = service.repository.get_available_layers(request.region_id)
+            available_layer_ids = [str(layer["layer_id"]) for layer in layer_descriptors]
+        except (AttributeError, KeyError, FileNotFoundError, ValueError):
+            available_layer_ids = []
+
+        limitations = [
+            "The sample is a raster-cell query; it is not a continuous terrain survey.",
+            "Slope is derived from the local elevation grid using finite differences.",
+        ]
+        if not is_valid:
+            limitations.append("The selected cell has no valid elevation value in the DTM.")
+
+        return TerrainSampleResponse(
+            region_id=request.region_id,
+            point=request.point,
+            coordinate_system="grid_row_col",
+            map_x_m=float(x_m),
+            map_y_m=float(y_m),
+            coverage_status=coverage_status,
+            no_data=not is_valid,
+            elevation_m=elevation_m,
+            slope_deg=slope_value,
+            slope_exceeds_threshold=(
+                bool(slope_value > request.terrain_config.max_slope_deg)
+                if slope_value is not None
+                else None
+            ),
+            traversable=(bool(terrain.traversable[row, col]) if is_valid else False),
+            pixel_size_x_m=float(region.pixel_size_x_m),
+            pixel_size_y_m=float(region.pixel_size_y_m),
+            source_ids=list(region.source_ids),
+            available_layer_ids=available_layer_ids,
+            nearby_scientific_targets=[
+                # The catalog already enforces source-backed target records.
+                build_target_response(target)
+                for target in nearby_targets
+            ],
+            limitations=limitations,
+        )
+
+    @router.post(
         "/elevation-profile",
         response_model=ElevationProfileResponse,
         summary="Calculate an elevation profile for a grid path",
     )
     def elevation_profile(request: TerrainProfileRequest) -> ElevationProfileResponse:
-        region = load_region(request.region_id)
+        region, analysis_window = region_for_window(request.region_id, request.analysis_window)
+        absolute_path = [point.as_tuple() for point in request.grid_path]
+        if any(not point_in_window(point, analysis_window) for point in absolute_path):
+            raise _terrain_error(
+                "INVALID_GRID_PATH",
+                "Every profile point must be inside the selected analysis window.",
+                422,
+                {"analysis_window": analysis_window.as_dict()},
+            )
         try:
             profile = TerrainAnalyzer().elevation_profile(
-                region, [point.as_tuple() for point in request.grid_path]
+                region, localize_path(absolute_path, analysis_window)
             )
         except ValueError as error:
             raise _terrain_error("INVALID_GRID_PATH", str(error), 422, {}) from error
         return ElevationProfileResponse(
-            grid_path=[GridPointModel(row=row, col=col) for row, col in profile.grid_path],
+            grid_path=[
+                GridPointModel(row=row, col=col)
+                for row, col in globalize_path(profile.grid_path, analysis_window)
+            ],
             cumulative_distance_m=list(profile.cumulative_distance_m),
             elevation_m=list(profile.elevation_m),
             distance_m=float(profile.distance_m),
@@ -118,7 +239,7 @@ def _build_terrain_router(service: MissionService) -> APIRouter:
         summary="Summarize terrain traversability without returning a raster",
     )
     def traversability(request: TraversabilityRequest) -> TraversabilityResponse:
-        region = load_region(request.region_id)
+        region, _analysis_window = region_for_window(request.region_id, request.analysis_window)
         try:
             statistics = analyzer(request.terrain_config).summary(region)
         except ValueError as error:

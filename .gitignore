@@ -36,19 +36,27 @@ Thumbs.db
 tmp/
 temp/
 
-# Large NASA/geospatial inputs and generated rasters.
-# Keep the directory placeholders and small metadata catalogs tracked.
-backend/data/raw/*
-!backend/data/raw/.gitkeep
+# NASA/geospatial inputs and generated rasters.
+# Raw source files under backend/data/raw are intentionally visible to Git so
+# the exact inputs used to build each processed regional dataset can be shared.
 backend/data/processed/*
 !backend/data/processed/.gitkeep
 !backend/data/processed/*.json
 !backend/data/processed/jezero_fan_256_elevation.tif
 !backend/data/processed/jezero_fan_256_orthoimage.tif
+!backend/data/processed/jezero_fan_512_elevation.tif
+!backend/data/processed/jezero_fan_512_orthoimage.tif
+!backend/data/processed/jezero_fan_1024_elevation.tif
+!backend/data/processed/jezero_fan_1024_orthoimage.tif
+!backend/data/processed/jezero_fan_2048_elevation.tif
+!backend/data/processed/jezero_fan_2048_orthoimage.tif
+!backend/data/processed/jezero_ctx_*_elevation.tif
+!backend/data/processed/jezero_ctx_*_orthoimage.tif
 
 # Local test/export artifacts
 *.sqlite3
 *.db
+backend/.pytest-tmp/
 dist/
 build/
 *.egg-info/

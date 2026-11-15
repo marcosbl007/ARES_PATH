@@ -23,16 +23,19 @@ from typing import Any
 
 import numpy as np
 import rasterio
+from rasterio.crs import CRS
 from rasterio.enums import Resampling
 from rasterio.io import MemoryFile
 from rasterio.windows import from_bounds
 
 from .processor import sha256, validate_region_id
+from app.terrain.slope import calculate_slope
+from .loader import load_elevation_data
 
 
 TILE_SIZE = 256
 LOCAL_TILE_MAX_ZOOM = 12
-_SUPPORTED_LAYER_IDS = frozenset(("elevation", "orthoimage"))
+_SUPPORTED_LAYER_IDS = frozenset(("elevation", "orthoimage", "slope"))
 
 
 class LayerNotFound(KeyError):
@@ -149,6 +152,8 @@ class RasterAssetService:
 
         if layer_id not in _SUPPORTED_LAYER_IDS:
             raise LayerNotFound(layer_id)
+        if layer_id == "slope":
+            raise LayerNotFound("slope is a derived display layer without a raw GeoTIFF path")
 
         metadata = self._region_metadata(region_id)
         if layer_id == "elevation":
@@ -184,6 +189,37 @@ class RasterAssetService:
         return path
 
     def layer_metadata(self, region_id: str, layer_id: str) -> dict[str, Any]:
+        if layer_id == "slope":
+            metadata = self._region_metadata(region_id)
+            elevation_path = self._elevation_path(region_id)
+            if not elevation_path.is_file():
+                raise FileNotFoundError(elevation_path)
+            if metadata.get("processed_sha256") and sha256(elevation_path) != metadata["processed_sha256"]:
+                raise ValueError("Processed raster checksum mismatch")
+            return {
+                "layer_id": "slope",
+                "shape": list(metadata["shape"]),
+                "width": int(metadata["shape"][1]),
+                "height": int(metadata["shape"][0]),
+                "count": 1,
+                "dtype": "float64",
+                "nodata": None,
+                "transform": list(metadata["transform"]),
+                "crs_wkt": metadata["crs_wkt"],
+                "map_bounds": list(metadata["map_bounds"]),
+                "coordinate_system": "native_projected_mars",
+                "pixel_size_x_m": float(metadata["pixel_size_x_m"]),
+                "pixel_size_y_m": float(metadata["pixel_size_y_m"]),
+                "units": "degrees",
+                "source_ids": list(metadata["source_ids"]),
+                "derived_from": "elevation",
+                "derivation_method": (
+                    "Finite differences on the validated elevation grid; "
+                    "slope = atan(sqrt((dz/dx)^2 + (dz/dy)^2)) in degrees."
+                ),
+                "used_for_routing": True,
+                "routing_role": "derived_input",
+            }
         path = self.layer_path(region_id, layer_id)
         sidecar = json.loads(path.with_suffix(".json").read_text(encoding="utf-8"))
         with rasterio.open(path) as source:
@@ -210,6 +246,47 @@ class RasterAssetService:
             }
         return {**sidecar, **descriptor}
 
+    def _slope_array(self, region_id: str) -> tuple[np.ndarray, Any]:
+        metadata = self._region_metadata(region_id)
+        path = self._elevation_path(region_id)
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        if metadata.get("processed_sha256") and sha256(path) != metadata["processed_sha256"]:
+            raise ValueError("Processed raster checksum mismatch")
+        region = load_elevation_data(
+            path,
+            region_id=region_id,
+            source_ids=tuple(str(value) for value in metadata.get("source_ids", [])),
+        )
+        return calculate_slope(region), region
+
+    @staticmethod
+    def _read_array_window(
+        values: np.ndarray,
+        region: Any,
+        bounds: TileBounds,
+    ) -> np.ma.MaskedArray:
+        with MemoryFile() as memory:
+            with memory.open(
+                driver="GTiff",
+                height=values.shape[0],
+                width=values.shape[1],
+                count=1,
+                dtype="float64",
+                crs=CRS.from_wkt(region.crs_wkt),
+                transform=region.transform,
+                nodata=np.nan,
+            ) as dataset:
+                dataset.write(values, 1)
+                return dataset.read(
+                    1,
+                    window=from_bounds(*bounds.as_tuple(), transform=region.transform),
+                    out_shape=(TILE_SIZE, TILE_SIZE),
+                    boundless=True,
+                    masked=True,
+                    resampling=Resampling.nearest,
+                )
+
     def read_tile_png(
         self,
         region_id: str,
@@ -221,25 +298,34 @@ class RasterAssetService:
         metadata = self.layer_metadata(region_id, layer_id)
         bounds = tuple(float(value) for value in metadata["map_bounds"])
         tile = tile_bounds(bounds, zoom, column, row)
-        path = self.layer_path(region_id, layer_id)
-
-        with rasterio.open(path) as source:
-            window = from_bounds(*tile.as_tuple(), transform=source.transform)
-            values = source.read(
-                1,
-                window=window,
-                out_shape=(TILE_SIZE, TILE_SIZE),
-                boundless=True,
-                masked=True,
-                resampling=Resampling.nearest,
-            )
-            global_values = source.read(1, masked=True) if layer_id == "elevation" else None
+        if layer_id == "slope":
+            slope, region = self._slope_array(region_id)
+            values = self._read_array_window(slope, region, tile)
+            global_values = np.ma.masked_invalid(slope)
+        else:
+            path = self.layer_path(region_id, layer_id)
+            with rasterio.open(path) as source:
+                window = from_bounds(*tile.as_tuple(), transform=source.transform)
+                values = source.read(
+                    1,
+                    window=window,
+                    out_shape=(TILE_SIZE, TILE_SIZE),
+                    boundless=True,
+                    masked=True,
+                    resampling=Resampling.nearest,
+                )
+                global_values = source.read(1, masked=True) if layer_id == "elevation" else None
 
         return _rgba_png(values, layer_id=layer_id, global_values=global_values)
     def read_preview_png(self, region_id: str, layer_id: str) -> bytes:
         self.layer_metadata(region_id, layer_id)
-        path = self.layer_path(region_id, layer_id)
-        with rasterio.open(path) as source:
-            values = source.read(1, masked=True)
-            global_values = values if layer_id == "elevation" else None
+        if layer_id == "slope":
+            slope, _region = self._slope_array(region_id)
+            values = np.ma.masked_invalid(slope)
+            global_values = values
+        else:
+            path = self.layer_path(region_id, layer_id)
+            with rasterio.open(path) as source:
+                values = source.read(1, masked=True)
+                global_values = values if layer_id == "elevation" else None
         return _rgba_png(values, layer_id=layer_id, global_values=global_values)

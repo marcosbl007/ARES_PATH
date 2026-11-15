@@ -59,7 +59,28 @@ _VERIFIED_LAYERS: tuple[dict[str, object], ...] = (
 def get_verified_mars_trek_layers() -> list[dict[str, object]]:
     """Return JSON-safe copies so callers cannot mutate the registry."""
 
-    return [deepcopy(layer) for layer in _VERIFIED_LAYERS]
+    layers: list[dict[str, object]] = []
+    for original in _VERIFIED_LAYERS:
+        layer = deepcopy(original)
+        layer.update(
+            {
+                "name": layer["title"],
+                "data_type": "optical_imagery",
+                "spatial_resolution_m": 0.25 if layer["instrument"] == "HiRISE" else 6.0,
+                "coverage_status": "regional_remote_catalog",
+                "coverage_description": "Remote Mars Trek mosaic coverage reported by its WMTS descriptor.",
+                "source_urls": [layer["source_url"], layer["capabilities_url"]],
+                "attribution": "NASA Mars Trek / USGS / JPL",
+                "limitations": [
+                    "Remote visual context only; the WMTS image does not supply elevation values.",
+                    "Alignment with the local processed Jezero DTM is not verified by this catalog entry.",
+                ],
+                "used_for_routing": False,
+                "routing_role": "display_only",
+            }
+        )
+        layers.append(layer)
+    return layers
 
 
 __all__ = ["get_verified_mars_trek_layers"]

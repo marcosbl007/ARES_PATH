@@ -71,7 +71,7 @@ describe("frontend foundation", () => {
   it("loads a region from the backend contract", async () => {
     render(<Home />);
 
-    await waitFor(() => expect(screen.getByDisplayValue("synthetic")).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText("10 × 10 cells · 100 valid cells")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Terrain coverage" })).toHaveValue("synthetic"));
+    await waitFor(() => expect(screen.getByText(/10 × 10 cells · 100 valid cells/)).toBeInTheDocument());
   });
 });

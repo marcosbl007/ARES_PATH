@@ -15,15 +15,21 @@ import { IconButton } from "@/components/atoms/icon-button";
 import { StatusDot } from "@/components/atoms/status-dot";
 import { LayerChip } from "@/components/molecules/layer-chip";
 import { OpenLayersMap } from "@/features/mars-map/components/openlayers-map";
-import type { MapLayer, MapLayerId, MarsMapController, MarsMapStatus } from "@/features/mars-map/types";
-import type { MissionResponse, RegionMetadata } from "@/shared/types/api-contract";
+import type { MapLayer, MapLayerId, MapSelectionMode, MarsMapController, MarsMapStatus } from "@/features/mars-map/types";
+import type { AnalysisWindow, GridPoint, MissionResponse, RegionMetadata } from "@/shared/types/api-contract";
 
 type MapViewportProps = {
   layers: MapLayer[];
   regionId: string;
   metadata: RegionMetadata | null;
   mission: MissionResponse | null;
+  analysisWindow: AnalysisWindow | null;
+  areaSelectionActive: boolean;
+  onAnalysisWindowChange: (analysisWindow: AnalysisWindow) => void;
   onToggleLayer: (layerId: MapLayerId) => void;
+  focusPoint: GridPoint | null;
+  selectionMode: MapSelectionMode;
+  onMapPointSelect: (point: GridPoint, mode: MapSelectionMode) => void;
 };
 
 function rowAxisLabels(metadata: RegionMetadata | null) {
@@ -46,7 +52,13 @@ export function MapViewport({
   regionId,
   metadata,
   mission,
+  analysisWindow,
+  areaSelectionActive,
+  onAnalysisWindowChange,
   onToggleLayer,
+  focusPoint,
+  selectionMode,
+  onMapPointSelect,
 }: MapViewportProps) {
   const controllerRef = useRef<MarsMapController | null>(null);
   const [mapStatus, setMapStatus] = useState<MarsMapStatus>("loading");
@@ -56,9 +68,9 @@ export function MapViewport({
     .map((layer) => layer.id === "hirise" ? "HiRISE" : "CTX");
 
   return (
-    <section className="map-stage" aria-label="Mars Trek orbital map and computational overlays">
+    <section id="map-viewport" className="map-stage" aria-label="Mars Trek orbital map and computational overlays">
       <div className="map-stage__axis map-stage__axis--top" aria-hidden="true">
-        <span>JEZERO / {regionId || "NO REGION"}</span>
+        <span>{regionId ? `REGIONAL DATASET / ${regionId}` : "REGIONAL DATASET / NO REGION"}</span>
         <span>{metadata ? "CRS: MARS TREK + LOCAL TRANSFORM" : "CRS: PENDING"}</span>
       </div>
 
@@ -105,6 +117,12 @@ export function MapViewport({
             mission={mission}
             regionId={regionId}
             controllerRef={controllerRef}
+            selectionMode={selectionMode}
+            onMapPointSelect={onMapPointSelect}
+            focusPoint={focusPoint}
+            analysisWindow={analysisWindow}
+            areaSelectionActive={areaSelectionActive}
+            onAnalysisWindowChange={onAnalysisWindowChange}
             onStatusChange={setMapStatus}
           />
 
@@ -126,7 +144,9 @@ export function MapViewport({
       <div className="map-stage__footer">
         <span><Route size={12} aria-hidden="true" /> {mission ? `${mission.routes.length} routes from backend` : "No route response"}</span>
         <span>{activeLayerLabels.length > 0 ? `${activeLayerLabels.join(" + ")} / WMTS` : "NASA / PENDING"}</span>
-        <span>{metadata ? `LOCAL ROI ${metadata.shape[1]} × ${metadata.shape[0]} CELLS` : "LOCAL ROI / PENDING"}</span>
+        <span>{metadata
+          ? `LOCAL DATASET ${metadata.shape[1]} × ${metadata.shape[0]} CELLS`
+          : "LOCAL DATASET / PENDING"}</span>
         <span>MAP / PAN + ZOOM</span>
       </div>
     </section>

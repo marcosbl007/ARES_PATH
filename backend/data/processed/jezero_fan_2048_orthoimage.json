@@ -1,0 +1,115 @@
+{
+  "region_id": "jezero_fan_2048",
+  "layer_id": "orthoimage",
+  "source_ids": [
+    "PSP_002387_1985_RED_C_01_ORTHO"
+  ],
+  "source": {
+    "product_id": "PSP_002387_1985_RED_C_01_ORTHO",
+    "version": "1.0",
+    "mission": "Mars Reconnaissance Orbiter",
+    "instrument": "HiRISE",
+    "producer": "University of Arizona",
+    "official_page": "https://www.uahirise.org/dtm/PSP_002387_1985",
+    "download_url": "https://www.uahirise.org/PDS/DTM/PSP/ORB_002300_002399/PSP_002387_1985_PSP_003798_1985/PSP_002387_1985_RED_C_01_ORTHO.JP2",
+    "label_url": "https://www.uahirise.org/PDS/DTM/PSP/ORB_002300_002399/PSP_002387_1985_PSP_003798_1985/PSP_002387_1985_RED_C_01_ORTHO.LBL",
+    "accessed_on": "2026-11-14",
+    "authentication": false,
+    "size_bytes": 30941086,
+    "kind": "orthoimage",
+    "filter": "RED",
+    "units": "DN",
+    "shape": [
+      11538,
+      6934
+    ],
+    "pds_map_scale_m": 1.0096476466229,
+    "associated_dtm": "DTEEC_002387_1985_003798_1985_A01",
+    "attribution": "NASA/JPL-Caltech/University of Arizona"
+  },
+  "shape": [
+    2048,
+    2048
+  ],
+  "crs_wkt": "PROJCS[\"EQUIRECTANGULAR MARS\",GEOGCS[\"GCS_MARS\",DATUM[\"D_MARS\",SPHEROID[\"MARS_localRadius\",3394839.8133163,0]],PRIMEM[\"Reference_Meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Equirectangular\"],PARAMETER[\"standard_parallel_1\",15],PARAMETER[\"central_meridian\",77.41],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+  "transform": [
+    1.0096476466229,
+    0.0,
+    -1455.9119064302217,
+    0.0,
+    -1.0096476466229,
+    1096757.0166305841
+  ],
+  "original_jp2_georeferencing": {
+    "crs_wkt": "PROJCS[\"Equirectangular MARS\",GEOGCS[\"GCS_MARS\",DATUM[\"unnamed\",SPHEROID[\"unnamed\",3394839.8133163,0]],PRIMEM[\"Reference meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Equirectangular\"],PARAMETER[\"latitude_of_origin\",15],PARAMETER[\"central_meridian\",77.41],PARAMETER[\"standard_parallel_1\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+    "transform": [
+      1.0096476466229,
+      0.0,
+      -3780.6256127794495,
+      0.0,
+      -1.0096476466229,
+      1101403.9199241658
+    ]
+  },
+  "georeferencing_method": "PDS label grid interpreted as original DTM IMG by GDAL",
+  "resampling": "none; integer window; DTM unchanged",
+  "units": "DN",
+  "invalid_dn": [
+    0,
+    1,
+    255
+  ],
+  "valid_pixels": 4194292,
+  "radiometric_scale": 0.0002616083304924,
+  "radiometric_offset": 0.0598125686258066,
+  "source_sha256": "be2612e4e932238959fd43b28118b6d319c83b19b3fcf4bd70a754f4b8eea99b",
+  "label_sha256": "8e19ea916399af81af8353f34d546ca74af40d78ed719ab6a4e5b0390421b8b5",
+  "processed_sha256": "7643038c94ae86770f7b6244a46e187b63b58c6485ee8fdd795212b25377ce6d",
+  "dtm_sha256": "a2b8ed9a21f6edbb536d14cfe558a00452505c9177d483fb3ee77ba5090252a4",
+  "grid_checkpoints": [
+    {
+      "row_col": [
+        0,
+        0
+      ],
+      "map_xy": [
+        -1455.4070826069103,
+        1096756.511806761
+      ],
+      "pds_original_row_col": [
+        4604,
+        2304
+      ]
+    },
+    {
+      "row_col": [
+        1024,
+        1024
+      ],
+      "map_xy": [
+        -421.52789246506063,
+        1095722.6326166189
+      ],
+      "pds_original_row_col": [
+        5628,
+        3328
+      ]
+    },
+    {
+      "row_col": [
+        2047,
+        2047
+      ],
+      "map_xy": [
+        611.341650030166,
+        1094689.7630741238
+      ],
+      "pds_original_row_col": [
+        6651,
+        4351
+      ]
+    }
+  ],
+  "alignment_status": "PDS grid verified; independent visual review pending",
+  "processed_at": "2026-11-15T15:26:36.215278+00:00"
+}

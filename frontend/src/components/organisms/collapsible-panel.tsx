@@ -10,6 +10,7 @@ type CollapsiblePanelProps = {
   label: string;
   children: ReactNode;
   className?: string;
+  id?: string;
 };
 
 export function CollapsiblePanel({
@@ -19,6 +20,7 @@ export function CollapsiblePanel({
   label,
   children,
   className,
+  id,
 }: CollapsiblePanelProps) {
   const ToggleIcon = side === "left"
     ? open
@@ -38,7 +40,7 @@ export function CollapsiblePanel({
     .join(" ");
 
   return (
-    <aside className={classes} aria-label={label}>
+    <aside id={id} className={classes} aria-label={label}>
       <IconButton
         className={`panel-toggle panel-toggle--${side}`}
         icon={ToggleIcon}

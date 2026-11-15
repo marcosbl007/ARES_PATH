@@ -33,7 +33,7 @@ En el entorno original de P3 no se recolectó la suite completa porque faltaban 
 
 ## P1 → P2 → P3 — Comprobación con el DTM real
 
-Fecha: 14 de noviembre de 2026. Desde `backend/`, con el TIFF local `jezero_fan_256_elevation.tif` verificado por P1 y Python 3.11.9, se ejecutaron conjuntamente `tests/test_nasa_data.py`, `tests/test_terrain.py` y `tests/test_routing.py`: **58 pruebas aprobadas**. Los 86 avisos son de deprecación/georreferenciación de dependencias y no hicieron fallar la suite.
+Fecha: 14 de noviembre de 2026. Desde `backend/`, con los GeoTIFF versionados `jezero_fan_256_elevation.tif` y `jezero_fan_256_orthoimage.tif`, se ejecutó la suite completa con el entorno virtual del proyecto: **72 pruebas aprobadas**. Los avisos son de deprecación/georreferenciación de dependencias y no hicieron fallar la suite.
 
 Se cargó `RegionData` mediante `RegionRepository().get_region("jezero_fan_256")`, se generó `TerrainData` con `analyze_region(region, {"max_slope_deg": 20.0, "slope_weight": 2.0})` y se llamó a `RoutePlanner().compare(region, terrain, (10, 20), (80, 65))`. Estas son celdas internas de prueba del recorte, no coordenadas geográficas ni puntos recomendados para una misión.
 
@@ -43,4 +43,4 @@ Se cargó `RegionData` mediante `RegionRepository().get_region("jezero_fan_256")
 - Evaluada con **la misma** función ponderada de P2, la ruta `shortest` cuesta 94.075194 y la ruta `terrain_aware` cuesta 92.531768, una reducción de 1.543426 unidades de coste del modelo. El `cost` informado directamente por el modo `shortest` usa pesos unitarios y no se comparó con el del otro modo.
 - La pendiente máxima por tramo fue 5.277° para `shortest` y 5.654° para `terrain_aware`. El segundo modo minimiza el coste acumulado definido; no garantiza reducir cada métrica individual ni certifica seguridad.
 
-Esta ejecución completa Gate C para el recorte y los puntos probados. El TIFF sigue excluido de Git; otro checkout debe reconstruirlo según `docs/nasa-data-sources.md`. Aún faltan la integración HTTP y la demo completa de P4.
+Esta ejecución cubre el recorte, el flujo HTTP público y los puntos probados. Los TIFF procesados están versionados en este checkout; los IMG/JP2 fuente son visibles para Git y los archivos grandes se gestionan con Git LFS. Otro checkout puede reconstruirlos según `docs/nasa-data-sources.md`. La demo completa de P4 y una aceptación offline de producción siguen pendientes.

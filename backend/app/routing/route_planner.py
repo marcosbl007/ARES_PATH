@@ -115,8 +115,22 @@ def find_terrain_aware_path(
 class RoutePlanner:
     """Reusable facade for calculating and comparing both route modes."""
 
+    _MAX_DYNAMIC_EXPANDED_CELLS = 8_000_000
+
     def __init__(self, max_expanded_cells: int | None = DEFAULT_MAX_EXPANDED_CELLS) -> None:
         self.max_expanded_cells = validate_expansion_limit(max_expanded_cells)
+
+    def _effective_limit(self, region: RegionLike) -> int | None:
+        """Give a selected raster enough budget to exhaust its valid cells."""
+
+        if self.max_expanded_cells is None:
+            return None
+
+        cell_count = int(np.asarray(region.elevation_m).size)
+        # A* closes each grid cell at most once. One extra expansion avoids an
+        # artificial SEARCH_LIMIT when the frontier exhausts a full window.
+        raster_limit = min(cell_count + 1, self._MAX_DYNAMIC_EXPANDED_CELLS)
+        return max(self.max_expanded_cells, raster_limit)
 
     def plan(
         self,
@@ -126,13 +140,14 @@ class RoutePlanner:
         goal: GridPoint,
         mode: RouteMode = "shortest",
     ) -> RouteResult:
+        max_expanded_cells = self._effective_limit(region)
         if mode == "shortest":
             return find_shortest_path(
-                region, terrain, start, goal, max_expanded_cells=self.max_expanded_cells
+                region, terrain, start, goal, max_expanded_cells=max_expanded_cells
             )
         if mode == "terrain_aware":
             return find_terrain_aware_path(
-                region, terrain, start, goal, max_expanded_cells=self.max_expanded_cells
+                region, terrain, start, goal, max_expanded_cells=max_expanded_cells
             )
         raise ValueError("mode must be 'shortest' or 'terrain_aware'.")
 
@@ -143,11 +158,12 @@ class RoutePlanner:
         start: GridPoint,
         goal: GridPoint,
     ) -> RouteComparison:
+        max_expanded_cells = self._effective_limit(region)
         shortest = find_shortest_path(
-            region, terrain, start, goal, max_expanded_cells=self.max_expanded_cells
+            region, terrain, start, goal, max_expanded_cells=max_expanded_cells
         )
         terrain_aware = find_terrain_aware_path(
-            region, terrain, start, goal, max_expanded_cells=self.max_expanded_cells
+            region, terrain, start, goal, max_expanded_cells=max_expanded_cells
         )
         return compare_routes(shortest, terrain_aware)
 

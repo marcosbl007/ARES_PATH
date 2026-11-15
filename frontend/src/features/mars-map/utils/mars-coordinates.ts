@@ -1,7 +1,8 @@
-import type { GridPoint, RegionMetadata } from "@/shared/types/api-contract";
+import type { AnalysisWindow, GridPoint, RegionMetadata } from "@/shared/types/api-contract";
 
 export type GeoCoordinate = [number, number];
 export type GeoExtent = [number, number, number, number];
+export type GridPosition = { row: number; col: number };
 export type MarsEquirectangularDefinition = {
   radiusMeters: number;
   standardParallelDegrees: number;
@@ -61,11 +62,23 @@ export function marsMapToLonLat(
   const standardParallelRadians = (definition.standardParallelDegrees * Math.PI) / 180;
   const longitude = definition.centralMeridianDegrees
     + ((x - definition.falseEastingMeters) / (definition.radiusMeters * Math.cos(standardParallelRadians))) * (180 / Math.PI);
-  const latitude = definition.falseNorthingMeters === 0
-    ? (y / definition.radiusMeters) * (180 / Math.PI)
-    : ((y - definition.falseNorthingMeters) / definition.radiusMeters) * (180 / Math.PI);
+  const latitude = ((y - definition.falseNorthingMeters) / definition.radiusMeters) * (180 / Math.PI);
 
   return [longitude, latitude];
+}
+
+export function lonLatToMarsMap(
+  longitude: number,
+  latitude: number,
+  definition: MarsEquirectangularDefinition,
+): [number, number] {
+  const standardParallelRadians = (definition.standardParallelDegrees * Math.PI) / 180;
+  const x = definition.falseEastingMeters
+    + (longitude - definition.centralMeridianDegrees) * (Math.PI / 180)
+      * definition.radiusMeters * Math.cos(standardParallelRadians);
+  const y = definition.falseNorthingMeters + latitude * (Math.PI / 180) * definition.radiusMeters;
+
+  return [x, y];
 }
 
 function affinePoint(
@@ -107,6 +120,29 @@ export function localRasterExtentInLonLat(
   ];
 }
 
+export function localGridWindowToLonLatExtent(
+  window: AnalysisWindow,
+  metadata: RegionMetadata,
+  definition: MarsEquirectangularDefinition,
+): GeoExtent {
+  const transform = metadataTransform(metadata);
+  const corners = [
+    affinePoint(transform, window.col, window.row),
+    affinePoint(transform, window.col + window.width, window.row),
+    affinePoint(transform, window.col + window.width, window.row + window.height),
+    affinePoint(transform, window.col, window.row + window.height),
+  ].map(([x, y]) => marsMapToLonLat(x, y, definition));
+  const longitudes = corners.map(([longitude]) => longitude);
+  const latitudes = corners.map(([, latitude]) => latitude);
+
+  return [
+    Math.min(...longitudes),
+    Math.min(...latitudes),
+    Math.max(...longitudes),
+    Math.max(...latitudes),
+  ];
+}
+
 export function localGridPointToLonLat(
   point: GridPoint,
   metadata: RegionMetadata,
@@ -122,4 +158,51 @@ export function localGridPathToLonLat(
   definition: MarsEquirectangularDefinition,
 ): GeoCoordinate[] {
   return path.map((point) => localGridPointToLonLat(point, metadata, definition));
+}
+
+export function localLonLatToGridPoint(
+  longitude: number,
+  latitude: number,
+  metadata: RegionMetadata,
+  definition: MarsEquirectangularDefinition,
+): GridPoint | null {
+  const position = localLonLatToGridPosition(longitude, latitude, metadata, definition);
+  if (!position) return null;
+
+  const [height, width] = metadata.shape;
+  const edgeTolerance = 1e-9;
+  if (
+    position.row < -edgeTolerance
+    || position.col < -edgeTolerance
+    || position.row >= height - edgeTolerance
+    || position.col >= width - edgeTolerance
+  ) {
+    return null;
+  }
+
+  return {
+    row: Math.min(height - 1, Math.max(0, Math.floor(position.row))),
+    col: Math.min(width - 1, Math.max(0, Math.floor(position.col))),
+  };
+}
+
+export function localLonLatToGridPosition(
+  longitude: number,
+  latitude: number,
+  metadata: RegionMetadata,
+  definition: MarsEquirectangularDefinition,
+): GridPosition | null {
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
+
+  const [x, y] = lonLatToMarsMap(longitude, latitude, definition);
+  const [a, b, c, d, e, f] = metadataTransform(metadata);
+  const determinant = a * e - b * d;
+  if (Math.abs(determinant) < Number.EPSILON) return null;
+
+  const column = ((x - c) * e - b * (y - f)) / determinant;
+  const row = (a * (y - f) - d * (x - c)) / determinant;
+  return {
+    row,
+    col: column,
+  };
 }

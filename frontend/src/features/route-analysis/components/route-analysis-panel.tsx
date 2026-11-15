@@ -3,16 +3,25 @@
 import {
   Activity,
   BarChart3,
+  CloudDownload,
   Database,
   Download,
+  FileJson,
   Info,
   Route,
+  Smartphone,
+  Trash2,
+  Upload,
+  WifiOff,
 } from "lucide-react";
 
 import { StatusBadge } from "@/components/atoms/status-badge";
 import { CollapsiblePanel } from "@/components/organisms/collapsible-panel";
 import { PanelHeading } from "@/components/molecules/panel-heading";
+import { MissionBriefingPanel } from "@/features/mission-reports/components/mission-briefing-panel";
 import type { AsyncStatus } from "@/features/mission-planning/hooks/use-mission-planning";
+import type { OfflinePackStatus } from "@/features/offline-missions/hooks/use-offline-missions";
+import type { MissionPack } from "@/features/offline-missions/types";
 import type {
   ElevationProfileResponse,
   MissionResponse,
@@ -27,6 +36,22 @@ type RouteAnalysisPanelProps = {
   status: AsyncStatus;
   errorMessage: string | null;
   profileErrorMessage: string | null;
+  offlinePacks: MissionPack[];
+  selectedOfflinePackId: string | null;
+  offlinePackStatus: OfflinePackStatus;
+  offlinePackError: string | null;
+  isOnline: boolean;
+  onSaveOfflinePack: () => void;
+  onSelectOfflinePack: (packageId: string) => void;
+  onDeleteOfflinePack: (packageId: string) => void;
+  onUseLiveWorkspace: () => void;
+  onExportManifest: () => void;
+  onImportPack: (file: File) => void;
+  onExportBriefing: () => void;
+  onPrintBriefing: () => void;
+  canInstall: boolean;
+  isInstalled: boolean;
+  onInstall: () => void;
 };
 
 function formatMeters(value: number) {
@@ -103,13 +128,29 @@ export function RouteAnalysisPanel({
   status,
   errorMessage,
   profileErrorMessage,
+  offlinePacks,
+  selectedOfflinePackId,
+  offlinePackStatus,
+  offlinePackError,
+  isOnline,
+  onSaveOfflinePack,
+  onSelectOfflinePack,
+  onDeleteOfflinePack,
+  onUseLiveWorkspace,
+  onExportManifest,
+  onImportPack,
+  onExportBriefing,
+  onPrintBriefing,
+  canInstall,
+  isInstalled,
+  onInstall,
 }: RouteAnalysisPanelProps) {
   const comparison = mission?.comparison;
   const statusLabel = status === "loading" ? "REQUESTING" : mission ? "READY" : status === "error" ? "ERROR" : "NOT RUN";
   const statusTone = status === "error" ? "pending" : mission ? "ready" : "pending";
 
   return (
-    <CollapsiblePanel open={open} onToggle={onToggle} side="right" label="Route analysis" className="route-analysis">
+    <CollapsiblePanel open={open} onToggle={onToggle} side="right" label="Route analysis" className="route-analysis" id="route-analysis-panel">
       <PanelHeading
         eyebrow="Route analysis"
         title="Comparative telemetry"
@@ -137,7 +178,7 @@ export function RouteAnalysisPanel({
           </section>
         )}
 
-        <section className="comparison-card" aria-label="Route comparison metrics">
+        <section id="route-comparison" className="comparison-card" aria-label="Route comparison metrics">
           <div className="comparison-card__heading">
             <span><BarChart3 size={14} aria-hidden="true" /> Comparison matrix</span>
             <span className="field-status">{comparison ? mission?.methodology_version : "AWAITING RESPONSE"}</span>
@@ -182,9 +223,88 @@ export function RouteAnalysisPanel({
           )}
         </section>
 
+        <MissionBriefingPanel
+          mission={mission}
+          onExport={onExportBriefing}
+          onPrint={onPrintBriefing}
+        />
+
+        <section id="offline-mission-packs" className="offline-pack-card" aria-label="Offline mission packs">
+          <div className="comparison-card__heading">
+            <span><CloudDownload size={14} aria-hidden="true" /> Offline Mission Pack</span>
+            <span className="field-status">{offlinePackStatus === "saving" ? "SAVING" : `${offlinePacks.length} STORED`}</span>
+          </div>
+          <p className="field-note">
+            Mission response, route profile and a compact local raster preview are stored in this browser. NASA WMTS tiles remain optional online context.
+          </p>
+          {!isOnline ? (
+            <p className="offline-pack__network"><WifiOff size={12} aria-hidden="true" /> Browser offline: select a stored pack to review it.</p>
+          ) : null}
+          <div className="pwa-install-card">
+            <div className="comparison-card__heading">
+              <span><Smartphone size={14} aria-hidden="true" /> ARES PATH app</span>
+              <span className="field-status">{isInstalled ? "INSTALLED" : canInstall ? "INSTALLABLE" : "PWA READY"}</span>
+            </div>
+            <p className="field-note">
+              {isInstalled
+                ? "The installed app can reopen the cached shell and saved Mission Packs."
+                : "Install the app to reopen the cached shell and review saved Mission Packs without the backend."}
+            </p>
+            <button type="button" className="secondary-action" disabled={isInstalled || !canInstall} onClick={onInstall}>
+              <Smartphone size={13} aria-hidden="true" /> {isInstalled ? "App installed" : "Install application"}
+            </button>
+          </div>
+          <div className="offline-pack-actions">
+            <label className="secondary-action" htmlFor="mission-pack-import">
+              <Upload size={13} aria-hidden="true" /> Import Mission Pack JSON
+            </label>
+            <input
+              id="mission-pack-import"
+              className="visually-hidden"
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onImportPack(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          {offlinePacks.length > 0 ? (
+            <div className="offline-pack-list">
+              {offlinePacks.map((pack) => (
+                <div className={selectedOfflinePackId === pack.package_id ? "offline-pack-item offline-pack-item--active" : "offline-pack-item"} key={pack.package_id}>
+                  <button type="button" className="offline-pack-item__select" onClick={() => onSelectOfflinePack(pack.package_id)}>
+                    <strong>{pack.region_id}</strong>
+                    <small>{pack.saved_at.slice(0, 16).replace("T", " ")} UTC · {pack.mission.routes.length} routes</small>
+                  </button>
+                  <button
+                    type="button"
+                    className="offline-pack-item__delete"
+                    aria-label={`Delete offline pack ${pack.region_id}`}
+                    onClick={() => onDeleteOfflinePack(pack.package_id)}
+                  >
+                    <Trash2 size={13} aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="field-note">No mission packs saved yet.</p>
+          )}
+          {selectedOfflinePackId ? (
+            <button type="button" className="secondary-action" onClick={onUseLiveWorkspace}>Use live workspace</button>
+          ) : null}
+          {offlinePackError ? <p className="form-error" role="alert">{offlinePackError}</p> : null}
+        </section>
+
         <div className="analysis-actions">
-          <button type="button" disabled><Download size={14} aria-hidden="true" /> Offline pack</button>
-          <button type="button" disabled>Export manifest</button>
+          <button type="button" disabled={!mission || offlinePackStatus === "saving"} onClick={onSaveOfflinePack}>
+            <Download size={14} aria-hidden="true" /> {offlinePackStatus === "saving" ? "Saving pack" : "Offline pack"}
+          </button>
+          <button type="button" disabled={!mission} onClick={onExportManifest}>
+            <FileJson size={14} aria-hidden="true" /> Export Mission Pack
+          </button>
         </div>
       </div>
     </CollapsiblePanel>

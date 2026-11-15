@@ -1,6 +1,6 @@
 # Evidencias de Persona 2 — Terrain
 
-Estas imágenes son láminas generadas a partir de ejecuciones locales y del DTM real preparado por P1. No son capturas directas de una ventana de terminal. Los registros de `pytest` usados para la primera lámina se conservan aquí sin modificar. Reflejan el estado anterior a la integración de P3; la validación conjunta posterior de P1+P2+P3 (58 pruebas y una ruta real) está en `docs/validation.md`.
+Estas imágenes son láminas generadas a partir de ejecuciones locales y del DTM real preparado por P1. No son capturas directas de una ventana de terminal. Los registros de `pytest` usados para la primera lámina se conservan aquí sin modificar. Reflejan el estado anterior a la integración de P3; la validación conjunta posterior de P1+P2+P3 y la comprobación HTTP real (72 pruebas) está en `docs/validation.md`.
 
 | Archivo | Qué demuestra |
 |---|---|
@@ -10,7 +10,7 @@ Estas imágenes son láminas generadas a partir de ejecuciones locales y del DTM
 | `pruebas_terreno.txt` | Salida completa de `pytest tests/test_terrain.py -v --disable-warnings`. |
 | `resultado_pruebas.txt` | Salida de la ejecución conjunta `pytest tests/test_terrain.py tests/test_nasa_data.py -q --disable-warnings`. |
 
-El producto de elevación utilizado por P1 es HiRISE `DTEEC_002387_1985_003798_1985_A01`, no el DEM global MOLA/HRSC discutido antes. El IMG original y el TIFF procesado se comprobaron frente a los SHA256 de `backend/data/processed/jezero_fan_256_elevation.json`. El TIFF es local y está excluido de Git; la descarga y preparación reproducibles están descritas en `docs/nasa-data-sources.md`. La fórmula, parámetros, valores exactos y limitaciones están en `docs/methodology.md`.
+El producto de elevación utilizado por P1 es HiRISE `DTEEC_002387_1985_003798_1985_A01`, no el DEM global MOLA/HRSC discutido antes. El IMG original y el TIFF procesado se comprobaron frente a los SHA256 de `backend/data/processed/jezero_fan_256_elevation.json`. El TIFF procesado está versionado en este checkout; la descarga y preparación reproducibles están descritas en `docs/nasa-data-sources.md`. La fórmula, parámetros, valores exactos y limitaciones están en `docs/methodology.md`.
 
 Para repetir las pruebas desde `backend/` con el entorno instalado:
 
@@ -19,4 +19,4 @@ Para repetir las pruebas desde `backend/` con el entorno instalado:
 .\.venv\Scripts\python.exe -m pytest tests/test_terrain.py tests/test_nasa_data.py -q --disable-warnings
 ```
 
-**Alcance:** estas imágenes prueban el módulo interno de P2 y su compatibilidad con `RegionData` de P1. P2 y P3 ya se probaron juntos después sobre el DTM real; los endpoints HTTP coordinados por P4 siguen pendientes. La máscara de transitabilidad usa un umbral exploratorio; no acredita seguridad de una caminata marciana.
+**Alcance:** estas imágenes prueban el módulo interno de P2 y su compatibilidad con `RegionData` de P1. P2, P3 y el flujo HTTP ya se probaron juntos después sobre el DTM real; la evidencia actualizada está en `docs/validation.md`. La máscara de transitabilidad usa un umbral exploratorio; no acredita seguridad de una caminata marciana.

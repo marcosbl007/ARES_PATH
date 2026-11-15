@@ -54,9 +54,51 @@ data/.venv/Scripts/python -m pytest tests -q
 La ventana es `(columna, fila, ancho, alto)` del raster original, sin interpolación,
 sin remuestreo y sin reproyección. Los índices de uso interno siguen siendo `(fila, columna)`.
 Los identificadores de región son inmutables: si ya existe el resultado, usar un ID nuevo para otro procesamiento.
-El resultado está en `data/processed/jezero_fan_256_elevation.tif` y `.json`.
-El IMG y el TIFF están disponibles localmente e ignorados por Git según las reglas existentes;
-el catálogo y el sidecar JSON son versionables. Otro checkout debe descargar y procesar el IMG.
+Además de `jezero_fan_256`, el mismo DTM se preparó como datasets regionales
+`jezero_fan_512`, `jezero_fan_1024` y `jezero_fan_2048`; son cuatro tamaños
+del mismo sector, no cobertura libre de todo Marte. El ROI de una misión debe
+permanecer dentro del dataset regional seleccionado.
+Cada tamaño tiene su `elevation.tif` y su `orthoimage.tif` (con sus respectivos
+`.json`) en `data/processed/`.
+
+## Mosaico CTX amplio de Jezero
+
+Para ampliar la zona explorable se incorporó el mosaico oficial de investigación
+CTX de Jezero publicado por USGS. El DTM tiene 20 m/píxel y la ortoimagen
+asociada 5 m/píxel; ambos cubren una extensión mucho mayor que el recorte
+HiRISE local. Se conservaron los archivos fuente en `data/raw/` y se generaron
+cuatro regiones de 2530 × 2221 celdas sobre la cobertura común:
+
+- `jezero_ctx_northwest_20m`
+- `jezero_ctx_northeast_20m`
+- `jezero_ctx_southwest_20m`
+- `jezero_ctx_southeast_20m`
+
+Fuentes oficiales y productos usados:
+
+- [USGS CTX DTM mosaic, DOI P906QQT8](https://www.usgs.gov/data/mars-2020-terrain-relative-navigation-ctx-dtm-mosaic).
+- [USGS CTX orthoimage mosaic, DOI P9GV1ND3](https://www.usgs.gov/data/mars-2020-terrain-relative-navigation-context-camera-orthorectified-image-mosaic).
+- [Índice de archivos GeoTIFF del repositorio USGS/NASA](https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/index.html).
+
+Cada región tiene `*_elevation.tif`, `*_elevation.json`,
+`*_orthoimage.tif` y `*_orthoimage.json`. La ortoimagen de 5 m se remuestrea
+con promedio a la cuadrícula de 20 m del DTM para que el overlay esté alineado;
+no participa en la pendiente ni en el cálculo de rutas.
+
+La preparación reproducible se ejecuta desde `backend/`:
+
+```powershell
+python -m app.nasa_data.mosaic_processor --data-dir data
+```
+
+Los insumos grandes de `data/raw/` no se ignoran; `.gitattributes` los entrega
+a Git LFS para que puedan versionarse sin convertirlos en blobs normales de
+Git. El backend no descarga datos durante una petición: usa los GeoTIFF
+procesados y sus hashes locales.
+El IMG fuente está visible para Git y los archivos grandes se gestionan con Git LFS;
+los TIFF procesados de esta región están versionados porque la demo y las pruebas HTTP
+dependen de ellos. El catálogo y los sidecar JSON también son versionables. Otro checkout
+puede descargar y procesar los insumos para reproducirlos.
 La API lista únicamente regiones cuyo TIFF y sidecar están presentes.
 `ARES_DATA_DIR` permite configurar otra raíz de datos con la misma estructura.
 
@@ -236,8 +278,9 @@ print(create_alignment_preview('jezero_fan_256'))
 
 Si ya existen los resultados, no repetir `process_orthoimage`: protege los archivos
 existentes. `create_alignment_preview` puede ejecutarse de nuevo por separado.
-No se agregaron dependencias nuevas. Los rasters siguen ignorados por Git;
-el catálogo y el sidecar son versionables.
+No se agregaron dependencias nuevas. Los TIFF procesados están versionados para esta región;
+los rasters fuente de gran tamaño son visibles y se gestionan con Git LFS. El catálogo y el
+sidecar son versionables.
 
 ### Inspección visual y trabajo pendiente
 

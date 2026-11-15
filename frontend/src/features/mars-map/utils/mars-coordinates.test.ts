@@ -5,6 +5,7 @@ import type { RegionMetadata } from "@/shared/types/api-contract";
 import {
   localGridPathToLonLat,
   localGridPointToLonLat,
+  localLonLatToGridPoint,
   localRasterExtentInLonLat,
   parseMarsEquirectangularWkt,
 } from "./mars-coordinates";
@@ -35,5 +36,9 @@ describe("Mars local raster georeferencing", () => {
     expect(lastCell[0]).toBeLessThan(extent[2]);
     expect(lastCell[1]).toBeGreaterThan(extent[1]);
     expect(path).toHaveLength(2);
+
+    expect(localLonLatToGridPoint(firstCell[0], firstCell[1], metadata, definition!)).toEqual({ row: 0, col: 0 });
+    expect(localLonLatToGridPoint(lastCell[0], lastCell[1], metadata, definition!)).toEqual({ row: 255, col: 255 });
+    expect(localLonLatToGridPoint(extent[2], extent[3], metadata, definition!)).toBeNull();
   });
 });

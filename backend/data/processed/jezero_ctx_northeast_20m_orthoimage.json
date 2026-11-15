@@ -1,0 +1,78 @@
+{
+  "region_id": "jezero_ctx_northeast_20m",
+  "layer_id": "orthoimage",
+  "source_ids": [
+    "MARS2020_CTX_JEZERO_ORTHO_5M"
+  ],
+  "source": {
+    "product_id": "M20_JezeroCrater_CTXortho_mosaic_5m.tif",
+    "dataset_id": "P9GV1ND3",
+    "version": "1.0",
+    "mission": "Mars 2020",
+    "instrument": "Context Camera (CTX)",
+    "producer": "USGS Astrogeology Science Center",
+    "title": "Mars 2020 Science Investigation CTX Orthoimage Mosaic for Jezero Crater",
+    "official_page": "https://www.usgs.gov/data/mars-2020-terrain-relative-navigation-context-camera-orthorectified-image-mosaic",
+    "download_url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/ScienceInvestigationMaps_JPL/M20_JezeroCrater_CTXortho_mosaic_5m.tif",
+    "doi": "https://doi.org/10.5066/P9GV1ND3",
+    "accessed_on": "2026-11-15",
+    "authentication": false,
+    "format": "GeoTIFF uint8",
+    "size_bytes": 359599280,
+    "kind": "orthoimage",
+    "units": "DN",
+    "nominal_resolution_m": 5.0,
+    "shape": [
+      20234,
+      17766
+    ],
+    "projection": "EQUIRECTANGULAR",
+    "projection_center_latitude_deg": 18.4663,
+    "projection_center_longitude_deg": 0.0,
+    "attribution": "USGS Astrogeology / NASA / JPL",
+    "usage_policy": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+    "associated_dtm": "MARS2020_CTX_JEZERO_DTM_20M"
+  },
+  "shape": [
+    2530,
+    2221
+  ],
+  "crs_wkt": "PROJCS[\"Jezero_Crater_Projection\",GEOGCS[\"GCS_Mars_2000_Sphere\",DATUM[\"Mars_2000_(Sphere)\",SPHEROID[\"Mars_2000_Sphere\",3396190,0]],PRIMEM[\"Reference_Meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Equirectangular\"],PARAMETER[\"standard_parallel_1\",18.4663],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+  "transform": [
+    20.0,
+    0.0,
+    4373619.999999998,
+    0.0,
+    -20.0,
+    1143340.0000000028
+  ],
+  "units": "DN",
+  "resampling": "average from 5 m CTX mosaic onto the 20 m DTM grid",
+  "valid_pixels": 5619130,
+  "original_ortho_georeferencing": {
+    "shape": [
+      20234,
+      17766
+    ],
+    "crs_wkt": "PROJCS[\"Equirectangular\",GEOGCS[\"GCS_Geographic_Coordinate_System\",DATUM[\"D_MARS\",SPHEROID[\"MARS\",3396190,0]],PRIMEM[\"Reference Meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Equirectangular\"],PARAMETER[\"standard_parallel_1\",18.4663],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1,AUTHORITY[\"EPSG\",\"9001\"]],AXIS[\"Easting\",EAST],AXIS[\"Northing\",NORTH]]",
+    "transform": [
+      5.002064681102627,
+      0.0,
+      4329192.10812596,
+      0.0,
+      -5.002262971613293,
+      1143347.424174998
+    ],
+    "bounds": [
+      4329192.10812596,
+      1042131.6352073746,
+      4418058.78925043,
+      1143347.424174998
+    ]
+  },
+  "source_sha256": "cd9f4b2154fdd43e8c17abfbae63210b72507db2209d1d7db63f6f855b18d2df",
+  "processed_sha256": "a998308eeefdc66b1aaf945fd4040cef3439bee6e38771c2afa1efcf6411ab12",
+  "dtm_sha256": "aa71034218c86288c1ceb04bf9130e54bf0464955f30c85cc53451aa18436a9c",
+  "alignment_status": "CTX orthoimage resampled to the selected DTM grid",
+  "processed_at": "2026-11-15T15:18:04.240477+00:00"
+}

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/shared/api/http-client";
 import type {
   ElevationProfileResponse,
+  AnalysisWindow,
   HealthResponse,
   Layer,
   MissionRequest,
@@ -13,6 +14,7 @@ import type {
   RegionMetadata,
   ScientificTarget,
   SystemInfoResponse,
+  TerrainSampleResponse,
 } from "@/shared/types/api-contract";
 import {
   getMarsTrekLayers,
@@ -25,6 +27,7 @@ import {
   getElevationProfile,
   getHealth,
   getScientificTargets,
+  getTerrainSample,
   getSystemInfo,
   MissionRequestSchema,
 } from "@/features/mission-planning/services/mission-api";
@@ -47,6 +50,9 @@ type MissionPlanningState = {
   elevationProfile: ElevationProfileResponse | null;
   error: ApiClientError | null;
   profileError: ApiClientError | null;
+  terrainSample: TerrainSampleResponse | null;
+  terrainSampleStatus: AsyncStatus;
+  terrainSampleError: ApiClientError | null;
 };
 
 const initialState: MissionPlanningState = {
@@ -65,6 +71,9 @@ const initialState: MissionPlanningState = {
   elevationProfile: null,
   error: null,
   profileError: null,
+  terrainSample: null,
+  terrainSampleStatus: "idle",
+  terrainSampleError: null,
 };
 
 function asApiError(error: unknown, fallback: string): ApiClientError {
@@ -86,9 +95,11 @@ export function useMissionPlanning() {
   const [state, setState] = useState<MissionPlanningState>(initialState);
   const [workspaceReload, setWorkspaceReload] = useState(0);
   const planControllerRef = useRef<AbortController | null>(null);
+  const sampleControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => {
     planControllerRef.current?.abort();
+    sampleControllerRef.current?.abort();
   }, []);
 
   useEffect(() => {
@@ -108,6 +119,12 @@ export function useMissionPlanning() {
       .then(([health, systemInfo, regions, marsTrekLayers]) => {
         if (!active) return;
 
+        const preferredRegion = regions.find((region) => region.region_id === "jezero_ctx_northwest_20m")
+          ?? regions.find((region) => region.region_id === "jezero_ctx_northeast_20m")
+          ?? regions.find((region) => region.region_id === "jezero_fan_2048")
+          ?? regions.find((region) => region.region_id === "jezero_fan_1024")
+          ?? regions[0];
+
         setState((current) => ({
           ...current,
           workspaceStatus: "success",
@@ -115,7 +132,7 @@ export function useMissionPlanning() {
           systemInfo,
           regions,
           marsTrekLayers,
-          selectedRegionId: current.selectedRegionId || regions[0]?.region_id || "",
+          selectedRegionId: current.selectedRegionId || preferredRegion?.region_id || "",
           error: null,
         }));
       })
@@ -152,6 +169,9 @@ export function useMissionPlanning() {
       scientificTargets: [],
       mission: null,
       elevationProfile: null,
+      terrainSample: null,
+      terrainSampleStatus: "idle",
+      terrainSampleError: null,
       error: null,
     }));
 
@@ -190,6 +210,7 @@ export function useMissionPlanning() {
 
   const selectRegion = useCallback((regionId: string) => {
     planControllerRef.current?.abort();
+    sampleControllerRef.current?.abort();
     planControllerRef.current = null;
     setState((current) => ({
       ...current,
@@ -198,8 +219,76 @@ export function useMissionPlanning() {
       mission: null,
       elevationProfile: null,
       profileError: null,
+      terrainSample: null,
+      terrainSampleStatus: "idle",
+      terrainSampleError: null,
     }));
   }, []);
+
+  const clearMission = useCallback(() => {
+    planControllerRef.current?.abort();
+    sampleControllerRef.current?.abort();
+    planControllerRef.current = null;
+    setState((current) => ({
+      ...current,
+      planStatus: "idle",
+      mission: null,
+      elevationProfile: null,
+      profileError: null,
+      terrainSample: null,
+      terrainSampleStatus: "idle",
+      terrainSampleError: null,
+      error: null,
+    }));
+  }, []);
+
+  const inspectTerrainPoint = useCallback(async (
+    point: { row: number; col: number },
+    terrainConfig: { max_slope_deg: number; slope_weight: number },
+    analysisWindow?: AnalysisWindow | null,
+  ) => {
+    if (!state.selectedRegionId) return null;
+
+    sampleControllerRef.current?.abort();
+    const controller = new AbortController();
+    sampleControllerRef.current = controller;
+    setState((current) => ({
+      ...current,
+      terrainSampleStatus: "loading",
+      terrainSampleError: null,
+    }));
+
+    try {
+      const sample = await getTerrainSample(
+        state.selectedRegionId,
+        point,
+        terrainConfig,
+        analysisWindow,
+        controller.signal,
+      );
+      setState((current) => ({
+        ...current,
+        terrainSample: sample,
+        terrainSampleStatus: "success",
+        terrainSampleError: null,
+      }));
+      return sample;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return null;
+      const apiError = asApiError(error, "Terrain sample could not be loaded.");
+      setState((current) => ({
+        ...current,
+        terrainSample: null,
+        terrainSampleStatus: "error",
+        terrainSampleError: apiError,
+      }));
+      return null;
+    } finally {
+      if (sampleControllerRef.current === controller) {
+        sampleControllerRef.current = null;
+      }
+    }
+  }, [state.selectedRegionId]);
 
   const planMission = useCallback(async (request: MissionRequest) => {
     const parsed = MissionRequestSchema.safeParse(request);
@@ -233,6 +322,7 @@ export function useMissionPlanning() {
         const elevationProfile = await getElevationProfile(
           parsed.data.region_id,
           mission.routes[0].grid_path,
+          parsed.data.analysis_window,
           controller.signal,
         );
         setState((current) => ({ ...current, elevationProfile, profileError: null }));
@@ -268,6 +358,8 @@ export function useMissionPlanning() {
   return {
     ...state,
     selectRegion,
+    clearMission,
+    inspectTerrainPoint,
     planMission,
     retry,
     };

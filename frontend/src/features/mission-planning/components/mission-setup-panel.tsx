@@ -1,18 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CircleDot,
+  Crosshair,
   MapPinned,
+  Search,
   SlidersHorizontal,
   Target,
+  Trash2,
 } from "lucide-react";
 
 import { StatusDot } from "@/components/atoms/status-dot";
+import { AnalysisAreaSelector } from "@/components/molecules/analysis-area-selector";
 import { PanelHeading } from "@/components/molecules/panel-heading";
 import { CollapsiblePanel } from "@/components/organisms/collapsible-panel";
+import type { MapLayer, MapLayerId, MapSelectionMode } from "@/features/mars-map/types";
 import type { AsyncStatus } from "@/features/mission-planning/hooks/use-mission-planning";
-import type { RegionMetadata, ScientificTarget } from "@/shared/types/api-contract";
+import { ScientificLayerExplorer } from "@/features/scientific-layers/components/scientific-layer-explorer";
+import { TerrainIntelligencePanel } from "@/features/scientific-layers/components/terrain-intelligence-panel";
+import { formatRegionLabel } from "@/shared/presentation/region-label";
+import type { AnalysisWindow, GridPoint, RegionMetadata, ScientificTarget, TerrainSampleResponse } from "@/shared/types/api-contract";
 
 export type PointDraft = {
   row: string;
@@ -26,13 +34,28 @@ type MissionSetupPanelProps = {
   selectedRegionId: string;
   onRegionChange: (regionId: string) => void;
   metadata: RegionMetadata | null;
+  analysisWindow: AnalysisWindow | null;
+  areaSelectionActive: boolean;
+  onToggleAreaSelection: () => void;
+  onResetAnalysisArea: () => void;
   regionStatus: AsyncStatus;
   scientificTargets: ScientificTarget[];
   selectedTargetIds: string[];
   onTargetToggle: (targetId: string) => void;
+  onTargetFocus: (point: GridPoint) => void;
+  onUseTargetAsDestination: (target: ScientificTarget) => void;
+  layers: MapLayer[];
+  onToggleLayer: (layerId: MapLayerId) => void;
+  onOpacityChange: (layerId: MapLayerId, opacity: number) => void;
+  terrainSample: TerrainSampleResponse | null;
+  terrainSampleStatus: AsyncStatus;
+  terrainSampleError: string | null;
   start: PointDraft;
   destination: PointDraft;
+  selectionMode: MapSelectionMode;
+  onSelectionModeChange: (mode: MapSelectionMode) => void;
   onPointChange: (point: "start" | "destination", axis: keyof PointDraft, value: string) => void;
+  onClearPoints: () => void;
   maxSlopeDeg: string;
   slopeWeight: string;
   onMaxSlopeChange: (value: string) => void;
@@ -64,13 +87,28 @@ export function MissionSetupPanel({
   selectedRegionId,
   onRegionChange,
   metadata,
+  analysisWindow,
+  areaSelectionActive,
+  onToggleAreaSelection,
+  onResetAnalysisArea,
   regionStatus,
   scientificTargets,
   selectedTargetIds,
   onTargetToggle,
+  onTargetFocus,
+  onUseTargetAsDestination,
+  layers,
+  onToggleLayer,
+  onOpacityChange,
+  terrainSample,
+  terrainSampleStatus,
+  terrainSampleError,
   start,
   destination,
+  selectionMode,
+  onSelectionModeChange,
   onPointChange,
+  onClearPoints,
   maxSlopeDeg,
   slopeWeight,
   onMaxSlopeChange,
@@ -81,11 +119,21 @@ export function MissionSetupPanel({
   errorMessage,
   onPlan,
 }: MissionSetupPanelProps) {
-  const [selectionMode, setSelectionMode] = useState<"origin" | "destination">("origin");
   const activePoint = selectionMode === "origin" ? start : destination;
+  const [targetTypeFilter, setTargetTypeFilter] = useState("all");
+  const [targetAvailabilityFilter, setTargetAvailabilityFilter] = useState("all");
+  const filteredTargets = useMemo(
+    () => scientificTargets.filter((target) => (
+      (targetTypeFilter === "all" || target.target_type === targetTypeFilter)
+      && (targetAvailabilityFilter === "all"
+        || (targetAvailabilityFilter === "routable" && target.routable)
+        || (targetAvailabilityFilter === "contextual" && !target.routable))
+    )),
+    [scientificTargets, targetAvailabilityFilter, targetTypeFilter],
+  );
 
   return (
-    <CollapsiblePanel open={open} onToggle={onToggle} side="left" label="Mission setup" className="mission-setup">
+    <CollapsiblePanel open={open} onToggle={onToggle} side="left" label="Mission setup" className="mission-setup" id="mission-setup-panel">
       <PanelHeading
         eyebrow="Mission setup"
         title="Traverse configuration"
@@ -99,7 +147,7 @@ export function MissionSetupPanel({
           <p>Coordinates are raster cells. The backend owns terrain analysis, routing and scientific values.</p>
         </div>
 
-        <label className="field-label" htmlFor="region-id">Region dataset</label>
+        <label className="field-label" htmlFor="region-id">Terrain coverage</label>
         <div className="field-shell">
           <MapPinned size={15} aria-hidden="true" />
           <select
@@ -113,7 +161,7 @@ export function MissionSetupPanel({
             {regions.length === 0 ? <option value="">No regions available</option> : null}
             {regions.map((region) => (
               <option key={region.region_id} value={region.region_id}>
-                {region.region_id}
+                {formatRegionLabel(region)}
               </option>
             ))}
           </select>
@@ -121,16 +169,24 @@ export function MissionSetupPanel({
         </div>
         <p className="field-note" id="region-note">
           {metadata
-            ? `${metadata.shape[1]} × ${metadata.shape[0]} cells · ${metadata.valid_cells} valid cells`
-            : "Waiting for region metadata from FastAPI."}
+            ? `${metadata.shape[1]} × ${metadata.shape[0]} cells · ${metadata.valid_cells} valid cells · selection stays inside this regional dataset.`
+            : "Waiting for terrain coverage metadata from FastAPI."}
         </p>
+
+        <AnalysisAreaSelector
+          metadata={metadata}
+          analysisWindow={analysisWindow}
+          selectionActive={areaSelectionActive}
+          onToggleSelection={onToggleAreaSelection}
+          onReset={onResetAnalysisArea}
+        />
 
         <div className="field-label-row">
           <span className="field-label">Coordinate system</span>
           <span className="mini-badge">grid_row_col</span>
         </div>
 
-        <div className="selection-block">
+        <div className="selection-block" id="terrain-criteria">
           <div className="selection-block__header">
             <span className="field-label">Mission points</span>
             <span className="field-status">2 REQUIRED</span>
@@ -139,7 +195,7 @@ export function MissionSetupPanel({
             <button
               className={selectionMode === "origin" ? "selection-tab selection-tab--active" : "selection-tab"}
               type="button"
-              onClick={() => setSelectionMode("origin")}
+              onClick={() => onSelectionModeChange("origin")}
               role="tab"
               aria-selected={selectionMode === "origin"}
             >
@@ -148,7 +204,7 @@ export function MissionSetupPanel({
             <button
               className={selectionMode === "destination" ? "selection-tab selection-tab--active" : "selection-tab"}
               type="button"
-              onClick={() => setSelectionMode("destination")}
+              onClick={() => onSelectionModeChange("destination")}
               role="tab"
               aria-selected={selectionMode === "destination"}
             >
@@ -180,6 +236,10 @@ export function MissionSetupPanel({
             <span><CircleDot size={12} aria-hidden="true" /> Origin: {pointSummary(start)}</span>
             <span><Target size={12} aria-hidden="true" /> Destination: {pointSummary(destination)}</span>
           </div>
+          <p className="field-note">Click the map to set the active point, or edit its grid row and col directly.</p>
+          <button className="secondary-action" type="button" onClick={onClearPoints}>
+            <Trash2 size={14} aria-hidden="true" /> Clear mission points
+          </button>
         </div>
 
         <div className="setup-divider" />
@@ -199,16 +259,36 @@ export function MissionSetupPanel({
           </div>
         </div>
 
-        <div className="selection-block target-selector">
+        <div className="selection-block target-selector" id="scientific-targets">
           <div className="selection-block__header">
-            <span className="field-label">Scientific context</span>
+            <span className="field-label"><Search size={14} aria-hidden="true" /> Scientific objectives</span>
             <span className="field-status">{scientificTargets.length} AVAILABLE</span>
           </div>
           {scientificTargets.length === 0 ? (
             <p className="field-note">No documented target entries were returned for this region.</p>
           ) : (
-            <div className="target-list">
-              {scientificTargets.map((target) => (
+            <>
+              <div className="target-filters">
+                <label>
+                  <span>Type</span>
+                  <select value={targetTypeFilter} onChange={(event) => setTargetTypeFilter(event.target.value)}>
+                    <option value="all">All types</option>
+                    {Array.from(new Set(scientificTargets.map((target) => target.target_type))).map((type) => (
+                      <option key={type} value={type}>{type.replaceAll("_", " ")}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Availability</span>
+                  <select value={targetAvailabilityFilter} onChange={(event) => setTargetAvailabilityFilter(event.target.value)}>
+                    <option value="all">All records</option>
+                    <option value="routable">Routable</option>
+                    <option value="contextual">Contextual only</option>
+                  </select>
+                </label>
+              </div>
+              <div className="target-list">
+              {filteredTargets.map((target) => (
                 <label className="target-option" key={target.target_id}>
                   <input
                     type="checkbox"
@@ -221,9 +301,44 @@ export function MissionSetupPanel({
                   </span>
                 </label>
               ))}
-            </div>
+              </div>
+              <div className="target-details-list">
+                {filteredTargets.map((target) => (
+                  <article className="target-detail" key={`${target.target_id}-detail`}>
+                    <p>{target.scientific_objective}</p>
+                    <div className="target-option__actions">
+                      {target.position ? (
+                        <button type="button" onClick={() => onTargetFocus(target.position as GridPoint)}>
+                          <Crosshair size={12} aria-hidden="true" /> Focus
+                        </button>
+                      ) : null}
+                      {target.routable && target.position ? (
+                        <button type="button" onClick={() => onUseTargetAsDestination(target)}>Use as destination</button>
+                      ) : <small>Not routable in this local raster</small>}
+                    </div>
+                    {target.source_references.length ? (
+                      <div className="target-option__sources">
+                        {target.source_references.map((reference) => (
+                          <a href={reference.url} target="_blank" rel="noreferrer" key={reference.url}>NASA reference</a>
+                        ))}
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            </>
           )}
         </div>
+
+        <div id="scientific-layer-explorer">
+          <ScientificLayerExplorer layers={layers} onToggle={onToggleLayer} onOpacityChange={onOpacityChange} />
+        </div>
+
+        <TerrainIntelligencePanel
+          sample={terrainSample}
+          status={terrainSampleStatus}
+          errorMessage={terrainSampleError}
+        />
 
         {validationMessage || errorMessage ? (
           <p className="form-error" role="alert">{validationMessage ?? errorMessage}</p>
