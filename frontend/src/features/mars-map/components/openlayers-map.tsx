@@ -413,7 +413,7 @@ export function OpenLayersMap({
     if (!isEmpty(datasetExtent)) {
       view.fit(datasetExtent, {
         padding: [78, 78, 78, 78],
-        maxZoom: 11,
+        maxZoom: MARS_TREK_MATRIX_COUNT - 1,
         duration: 0,
       });
     }
@@ -423,7 +423,7 @@ export function OpenLayersMap({
       zoomOut: () => view.animate({ zoom: Math.max((view.getZoom() ?? 0) - 1, 0), duration: 180 }),
       resetView: () => {
         if (!isEmpty(datasetExtent)) {
-          view.fit(datasetExtent, { padding: [78, 78, 78, 78], maxZoom: 11, duration: 220 });
+          view.fit(datasetExtent, { padding: [78, 78, 78, 78], maxZoom: MARS_TREK_MATRIX_COUNT - 1, duration: 220 });
         }
       },
       resetRotation: () => view.setRotation(0),
@@ -432,7 +432,7 @@ export function OpenLayersMap({
           const selectedWindow = analysisWindowRef.current ?? createCenteredAnalysisWindow(metadata);
           view.fit(localGridWindowToLonLatExtent(selectedWindow, metadata, definition), {
             padding: [110, 110, 110, 110],
-            maxZoom: 17,
+            maxZoom: MARS_TREK_MATRIX_COUNT - 1,
             duration: 220,
           });
         }
@@ -451,7 +451,7 @@ export function OpenLayersMap({
     const frame = window.requestAnimationFrame(() => {
       map.updateSize();
       if (!isEmpty(datasetExtent)) {
-        view.fit(datasetExtent, { padding: [78, 78, 78, 78], maxZoom: 11, duration: 0 });
+        view.fit(datasetExtent, { padding: [78, 78, 78, 78], maxZoom: MARS_TREK_MATRIX_COUNT - 1, duration: 0 });
       }
     });
 
