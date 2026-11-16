@@ -2,7 +2,7 @@
 
 **Tipo:** guía operativa de despliegue
 **Arquitectura recomendada:** Vercel para el frontend y Render para el backend
-**Estado:** preparada para el prototipo/demo actual; revisar los límites antes de producción
+**Estado:** demo desplegada y verificada el 2026-11-15; configuración y pruebas reales en la sección 16
 **Fecha:** 2026-11-15
 
 Esta guía explica cómo publicar ARES PATH sin cambiar la arquitectura actual:
@@ -13,7 +13,7 @@ Esta guía explica cómo publicar ARES PATH sin cambiar la arquitectura actual:
 - PWA servida desde Vercel mediante HTTPS.
 - Mission Packs guardados en el navegador para consulta offline.
 
-La guía no crea servicios, no configura cuentas y no hace commits. Es el procedimiento para que el equipo lo ejecute de forma repetible.
+Las secciones 1 a 15 describen el procedimiento repetible. La sección 16 registra el despliegue ejecutado para esta demo.
 
 ## 1. Arquitectura recomendada
 
@@ -743,6 +743,40 @@ Azure Container Apps puede ejecutar el contenedor del backend y Blob Storage pue
 - [ ] La UI muestra procedencia y limitaciones.
 - [ ] El flujo offline se explica antes de desconectar la red.
 - [ ] Se conserva un Mission Pack de respaldo para la presentación.
+
+## 16. Despliegue ejecutado el 2026-11-15
+
+### Servicios publicados
+
+| Componente | URL | Configuración |
+| --- | --- | --- |
+| Aplicación | https://ares-path-plum.vercel.app | Proyecto `ares-path` en Vercel Hobby de `marcosbl007`; raíz `frontend`; rama de producción `feature/devops` |
+| API | https://ares-path-api.onrender.com | Servicio `ares-path-api` en Render Free; raíz `backend`; Docker; región Oregon; rama `feature/devops` |
+| Estado de la API | https://ares-path-api.onrender.com/api/health | Comprobado con HTTP 200 y `status: ok` |
+
+El proyecto de Vercel se administra en https://vercel.com/marcosbl007s-projects/ares-path. El servicio de Render se administra en https://dashboard.render.com/web/srv-dbt5kkk9v7es73c99100 desde la cuenta de Render usada por la persona 2. Las cuentas de ambos proveedores pueden pertenecer a personas distintas; el repositorio fuente es `https://github.com/marcosbl007/ARES_PATH`.
+
+### Configuración efectiva
+
+- Vercel: framework Next.js; `pnpm install --frozen-lockfile`; `pnpm build`; `NEXT_PUBLIC_API_URL=https://ares-path-api.onrender.com` en Production y Preview.
+- Render: Dockerfile `backend/Dockerfile`; health check `/api/health`; `ARES_DATA_ROOT=/app/data`; `ARES_CORS_ORIGINS=https://ares-path-plum.vercel.app`. El contenedor usa el `PORT` asignado por Render y lleva `data/processed` dentro de la imagen.
+- El primer despliegue de Vercel intentó usar `main` y falló porque esa rama no tenía la configuración del frontend. Se corrigió la raíz y el seguimiento de `feature/devops`; el despliegue de producción actual quedó en estado Ready. Ese intento fallido permanece en el historial, pero no atiende el dominio público.
+- El commit `a724518` corrigió el zoom de ajuste del mapa para que el raster local de Jezero se vea en producción. Vercel publicó ese commit automáticamente.
+
+### Comprobaciones realizadas
+
+- Backend: `/api/health`, `/api/system/info` y `/api/data/regions` respondieron correctamente; el catálogo devolvió ocho regiones. La metadata de `jezero_fan_256` indicó 256 × 256 celdas y CRS. Los previews de elevación, ortoimagen y pendiente respondieron HTTP 200 como `image/png`.
+- La API respondió a una misión válida con `shortest` y `terrain_aware`. La cabecera CORS de la API permitió el origen de producción de Vercel.
+- Frontend: `/`, `/manifest.webmanifest`, `/sw.js` y el logo respondieron HTTP 200. En el navegador se confirmó `API / ONLINE`, carga del raster de `jezero_fan_256`, cálculo de las dos rutas, perfil de elevación, informe y procedencia. Un Mission Pack guardado se conservó tras recargar la página y pudo abrirse desde Offline.
+- La construcción local de Docker arrancó y atendió solicitudes. Antes de publicar se ejecutaron 85 pruebas del backend, siete pruebas del frontend, lint, comprobación de tipos y build. Tras la corrección del zoom se repitieron lint y build.
+- Evidencia visual: [captura de producción](deployment-vercel-production.jpg). Muestra el raster local, la conexión con la API y la comparación de las dos rutas.
+
+### Pendiente de comprobar antes de la presentación
+
+- Abrir la URL desde una sesión limpia y medir la primera respuesta después de inactividad del servicio gratuito de Render.
+- Probar explícitamente exportación e importación del JSON, desconexión real de la red y el prompt nativo de instalación de la PWA. La interfaz mostró `INSTALLABLE`, pero no se instaló la aplicación.
+- Verificar el flujo de actualización del backend tras el siguiente cambio en `backend/`. Render se conectó mediante URL pública de Git; si no despliega automáticamente, usar el panel de Render para lanzar el nuevo deploy.
+- La producción está siguiendo `feature/devops`. Si el equipo fusiona esta rama en `develop` y decide operar desde `develop`, cambiar también la rama de producción en ambos proveedores antes de borrar `feature/devops`.
 
 ## Referencias oficiales
 
