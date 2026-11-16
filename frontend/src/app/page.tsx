@@ -60,6 +60,9 @@ function apiErrorMessage(error: { code: string; message: string; details?: unkno
   if (error.code === "NO_PATH") {
     return `No existe una ruta continua entre los puntos dentro del área seleccionada.${suggestion ? ` ${suggestion}` : ""}`;
   }
+  if (error.code === "NETWORK_ERROR") {
+    return "No se pudo contactar al servidor. Intenta planear la misión de nuevo en unos segundos.";
+  }
 
   if (suggestion) return `${error.message} ${suggestion} [${error.code}]`;
   return `${error.message} [${error.code}]`;
@@ -74,8 +77,7 @@ function exampleMissionPoints(window: AnalysisWindow) {
   };
 }
 
-function terrainPointError(pointLabel: string, sample: TerrainSampleResponse | null) {
-  if (!sample) return `No se pudo validar el punto ${pointLabel} con el backend.`;
+function terrainPointError(pointLabel: string, sample: TerrainSampleResponse) {
   if (sample.no_data || sample.elevation_m === null) {
     return `El punto ${pointLabel} no tiene una elevación válida en el DTM.`;
   }
@@ -439,6 +441,7 @@ export default function Home() {
       terrainConfig,
       activeAnalysisWindow,
     );
+    if (!startSample) return;
     const startError = terrainPointError("de origen", startSample);
     if (startError) {
       setPointValidationMessage(startError);
@@ -450,6 +453,7 @@ export default function Home() {
       terrainConfig,
       activeAnalysisWindow,
     );
+    if (!destinationSample) return;
     const destinationError = terrainPointError("de destino", destinationSample);
     if (destinationError) {
       setPointValidationMessage(destinationError);

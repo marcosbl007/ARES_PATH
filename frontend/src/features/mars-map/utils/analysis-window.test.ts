@@ -28,4 +28,17 @@ describe("regional analysis window", () => {
     expect(isPointInAnalysisWindow({ row: 0, col: 112 }, normalized)).toBe(true);
     expect(isPointInAnalysisWindow({ row: 400, col: 511 }, normalized)).toBe(false);
   });
+
+  it("keeps large-region analysis within the deployed compute budget", () => {
+    const largeRegion = { ...metadata, shape: [2048, 2048] } as RegionMetadata;
+
+    expect(createDefaultAnalysisWindow(largeRegion)).toEqual({
+      row: 768, col: 768, height: 512, width: 512,
+    });
+    expect(normalizeAnalysisWindow({
+      row: 0, col: 0, height: 1024, width: 1024,
+    }, largeRegion)).toEqual({
+      row: 0, col: 0, height: 512, width: 512,
+    });
+  });
 });

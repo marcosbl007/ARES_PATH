@@ -19,6 +19,7 @@ from app.missions.mission_service import (
     create_mission_service,
 )
 from app.missions.analysis_window import (
+    AnalysisWindow,
     crop_region,
     globalize_path,
     localize_path,
@@ -136,15 +137,27 @@ def _build_terrain_router(service: MissionService) -> APIRouter:
 
         try:
             terrain_analyzer = analyzer(request.terrain_config)
-            terrain = terrain_analyzer.analyze(region)
-            slope = terrain_analyzer.calculate_slope(region)
+            height, width = region.elevation_m.shape
+            neighborhood_row = max(0, row - 1)
+            neighborhood_col = max(0, col - 1)
+            neighborhood = AnalysisWindow(
+                row=neighborhood_row,
+                col=neighborhood_col,
+                height=min(height, row + 2) - neighborhood_row,
+                width=min(width, col + 2) - neighborhood_col,
+            )
+            sample_region = crop_region(region, neighborhood)
+            sample_row = row - neighborhood_row
+            sample_col = col - neighborhood_col
+            terrain = terrain_analyzer.analyze(sample_region)
         except ValueError as error:
             raise _terrain_error("INVALID_TERRAIN_CONFIG", str(error), 422, {}) from error
 
         x_m, y_m = region.cell_center(row, col)
-        is_valid = bool(region.valid_mask[row, col])
-        elevation_m = float(region.elevation_m[row, col]) if is_valid else None
-        slope_value = float(slope[row, col]) if np.isfinite(slope[row, col]) else None
+        is_valid = bool(sample_region.valid_mask[sample_row, sample_col])
+        elevation_m = float(sample_region.elevation_m[sample_row, sample_col]) if is_valid else None
+        sampled_slope = terrain.slope_deg[sample_row, sample_col]
+        slope_value = float(sampled_slope) if np.isfinite(sampled_slope) else None
         coverage_status = "valid" if is_valid and slope_value is not None else "nodata"
 
         nearby_targets = []
@@ -186,7 +199,7 @@ def _build_terrain_router(service: MissionService) -> APIRouter:
                 if slope_value is not None
                 else None
             ),
-            traversable=(bool(terrain.traversable[row, col]) if is_valid else False),
+            traversable=(bool(terrain.traversable[sample_row, sample_col]) if is_valid else False),
             pixel_size_x_m=float(region.pixel_size_x_m),
             pixel_size_y_m=float(region.pixel_size_y_m),
             source_ids=list(region.source_ids),

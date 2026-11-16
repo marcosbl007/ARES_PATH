@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 
 from affine import Affine
 
@@ -46,18 +47,24 @@ def resolve_analysis_window(
 
     height, width = region.elevation_m.shape
     if requested is None:
-        return AnalysisWindow(row=0, col=0, height=height, width=width)
-
-    window = AnalysisWindow(
-        row=requested.row,
-        col=requested.col,
-        height=requested.height,
-        width=requested.width,
-    )
+        window = AnalysisWindow(row=0, col=0, height=height, width=width)
+    else:
+        window = AnalysisWindow(
+            row=requested.row,
+            col=requested.col,
+            height=requested.height,
+            width=requested.width,
+        )
     if window.row_end > height or window.col_end > width:
         raise ValueError(
             "Analysis window must be fully contained in the selected region "
             f"({height} rows x {width} columns)."
+        )
+    limit = os.environ.get("ARES_MAX_ANALYSIS_WINDOW_CELLS")
+    if limit is not None and window.height * window.width > int(limit):
+        raise ValueError(
+            f"Analysis window exceeds this deployment's limit of {limit} cells. "
+            "Select a smaller area."
         )
     return window
 

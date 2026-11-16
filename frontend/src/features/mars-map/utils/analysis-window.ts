@@ -1,13 +1,14 @@
 import type { AnalysisWindow, GridPoint, RegionMetadata } from "@/shared/types/api-contract";
 
 export const MIN_ANALYSIS_WINDOW_CELLS = 32;
+export const MAX_ANALYSIS_WINDOW_CELLS = 512;
 
 export function createCenteredAnalysisWindow(
   metadata: RegionMetadata,
-  preferredSize = 1024,
+  preferredSize = MAX_ANALYSIS_WINDOW_CELLS,
 ): AnalysisWindow {
   const [height, width] = metadata.shape;
-  const size = Math.max(1, Math.min(preferredSize, height, width));
+  const size = Math.max(1, Math.min(preferredSize, MAX_ANALYSIS_WINDOW_CELLS, height, width));
   return {
     row: Math.floor((height - size) / 2),
     col: Math.floor((width - size) / 2),
@@ -17,7 +18,7 @@ export function createCenteredAnalysisWindow(
 }
 
 export function createDefaultAnalysisWindow(metadata: RegionMetadata): AnalysisWindow {
-  return createCenteredAnalysisWindow(metadata, 1024);
+  return createCenteredAnalysisWindow(metadata);
 }
 
 export function normalizeAnalysisWindow(
@@ -27,10 +28,12 @@ export function normalizeAnalysisWindow(
   const [height, width] = metadata.shape;
   const normalizedHeight = Math.min(
     height,
+    MAX_ANALYSIS_WINDOW_CELLS,
     Math.max(Math.min(MIN_ANALYSIS_WINDOW_CELLS, height), Math.round(window.height)),
   );
   const normalizedWidth = Math.min(
     width,
+    MAX_ANALYSIS_WINDOW_CELLS,
     Math.max(Math.min(MIN_ANALYSIS_WINDOW_CELLS, width), Math.round(window.width)),
   );
   return {

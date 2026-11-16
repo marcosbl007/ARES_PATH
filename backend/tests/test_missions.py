@@ -14,6 +14,7 @@ from app.missions.mission_service import MissionService
 from app.missions.scientific_targets import ScientificTarget, ScientificTargetCatalog
 from app.nasa_data.schemas import RegionData
 from app.api.router import create_api_router
+from app.terrain import TerrainAnalyzer
 
 
 @dataclass
@@ -180,6 +181,39 @@ def test_terrain_sample_endpoint_uses_the_real_region_contract() -> None:
     assert payload["elevation_m"] == 100.0
     assert payload["slope_deg"] == 0.0
     assert payload["source_ids"] == ["synthetic-elevation"]
+
+
+def test_terrain_sample_analyzes_only_the_point_neighborhood(monkeypatch) -> None:
+    analyze = TerrainAnalyzer.analyze
+
+    def check_neighborhood(self, region):
+        assert region.elevation_m.size <= 9
+        return analyze(self, region)
+
+    monkeypatch.setattr(TerrainAnalyzer, "analyze", check_neighborhood)
+    response = app_client().post(
+        "/api/terrain/sample",
+        json={
+            "region_id": "synthetic",
+            "point": {"row": 0, "col": 0},
+            "analysis_window": {"row": 0, "col": 0, "height": 10, "width": 10},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["slope_deg"] == 0.0
+
+
+def test_deployment_analysis_area_limit_returns_a_structured_error(monkeypatch) -> None:
+    monkeypatch.setenv("ARES_MAX_ANALYSIS_WINDOW_CELLS", "64")
+    response = app_client().post(
+        "/api/missions/plan",
+        json=mission_payload(scientific_target_ids=[]),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "INVALID_ANALYSIS_WINDOW"
+    assert "64 cells" in response.json()["detail"]["message"]
 
 
 def test_scientific_targets_endpoint_rejects_unknown_region() -> None:

@@ -1,5 +1,6 @@
 import { Check, Maximize2, Move, RotateCcw } from "lucide-react";
 
+import { MAX_ANALYSIS_WINDOW_CELLS } from "@/features/mars-map/utils/analysis-window";
 import type { RegionMetadata } from "@/shared/types/api-contract";
 import type { AnalysisWindow } from "@/shared/types/api-contract";
 
@@ -36,6 +37,7 @@ export function AnalysisAreaSelector({
       </div>
       <p className="analysis-area-panel__hint">
         Activate selection, then drag the yellow frame on the map. Drag a corner to resize it.
+        {` Maximum ${MAX_ANALYSIS_WINDOW_CELLS} × ${MAX_ANALYSIS_WINDOW_CELLS} cells for route calculation.`}
       </p>
       <div className="analysis-area-panel__metrics">
         <span><strong>{analysisWindow ? `${analysisWindow.width} × ${analysisWindow.height}` : "—"}</strong><small>cells</small></span>
