@@ -1,12 +1,8 @@
-<table width="100%">
-  <tr>
-    <td align="center" bgcolor="#07111c">
-      <img src="frontend/public/brand/ares-path-logo-rectangular.png" alt="ARES PATH" width="520">
-    </td>
-  </tr>
-</table>
-
 <div align="center">
+  <p align="center">
+    <img src="frontend/public/brand/ares-path-logo-rectangular.png" alt="ARES PATH" width="520">
+  </p>
+
   <p><strong>Explainable terrain-aware route planning for future Marswalks</strong></p>
   <p>NASA Space Apps Challenge 2026 · Interplanetary Survival Guide: Martian Map</p>
 
