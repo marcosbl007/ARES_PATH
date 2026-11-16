@@ -57,8 +57,12 @@ or resized from its corners; its `analysis_window` is sent to FastAPI and the
 backend performs the calculation only inside that window. The map interaction
 and backend validation keep the ROI inside the selected parent raster, and
 coordinates remain relative to that regional dataset.
-through the local Mars equirectangular metadata. The raw GeoTIFF endpoint is
-not used as a numeric source in the browser.
+The local elevation and orthoimage previews share the selected raster's CRS,
+transform, shape and extent; remote CTX/HiRISE WMTS layers are optional and
+disabled by default because their alignment is not guaranteed. The raw
+GeoTIFF endpoint is not used as a numeric source in the browser. Before a
+mission request, both endpoints are sampled by FastAPI so NoData or
+slope-blocked cells are rejected with an actionable message.
 
 Mission responses can be saved as an Offline Mission Pack in IndexedDB and
 reviewed when the API is unavailable. The installable PWA caches its shell,

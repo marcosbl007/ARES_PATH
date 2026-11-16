@@ -7,6 +7,12 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
+type PwaWindow = Window & {
+  __ARES_PATH_INSTALL_PROMPT__?: BeforeInstallPromptEvent | null;
+  __ARES_PATH_INSTALL_PROMPT_LISTENERS__?: Set<() => void>;
+  __ARES_PATH_INSTALL_CAPTURE_ATTACHED__?: boolean;
+};
+
 type PwaInstallContextValue = {
   canInstall: boolean;
   isInstalled: boolean;
@@ -15,49 +21,105 @@ type PwaInstallContextValue = {
 
 const PwaInstallContext = createContext<PwaInstallContextValue | null>(null);
 
+function browserWindow() {
+  return typeof window === "undefined" ? null : window as PwaWindow;
+}
+
+function notifyInstallPromptListeners(target: PwaWindow) {
+  target.__ARES_PATH_INSTALL_PROMPT_LISTENERS__?.forEach((listener) => listener());
+}
+
+function captureInstallPrompt(event: Event) {
+  const target = browserWindow();
+  if (!target) return;
+
+  event.preventDefault();
+  target.__ARES_PATH_INSTALL_PROMPT__ = event as BeforeInstallPromptEvent;
+  notifyInstallPromptListeners(target);
+}
+
+function ensureInstallPromptCapture() {
+  const target = browserWindow();
+  if (!target) return null;
+
+  target.__ARES_PATH_INSTALL_PROMPT_LISTENERS__ ??= new Set();
+  if (!target.__ARES_PATH_INSTALL_CAPTURE_ATTACHED__) {
+    target.addEventListener("beforeinstallprompt", captureInstallPrompt);
+    target.__ARES_PATH_INSTALL_CAPTURE_ATTACHED__ = true;
+  }
+
+  return target;
+}
+
+function clearInstallPrompt() {
+  const target = browserWindow();
+  if (!target) return;
+
+  target.__ARES_PATH_INSTALL_PROMPT__ = null;
+  notifyInstallPromptListeners(target);
+}
+
+if (typeof window !== "undefined") {
+  ensureInstallPromptCapture();
+}
+
 function isStandaloneDisplayMode() {
-  return window.matchMedia("(display-mode: standalone)").matches
+  const displayModeMatches = typeof window.matchMedia === "function"
+    && window.matchMedia("(display-mode: standalone)").matches;
+  return displayModeMatches
     || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
 }
 
 export function PwaProvider({ children }: { children: React.ReactNode }) {
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(
+    () => ensureInstallPromptCapture()?.__ARES_PATH_INSTALL_PROMPT__ ?? null,
+  );
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    const displayModeTimer = window.setTimeout(() => setIsInstalled(isStandaloneDisplayMode()), 0);
+    const target = ensureInstallPromptCapture();
+    if (!target) return;
 
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
+    const syncInstallPrompt = () => {
+      setInstallPrompt(target.__ARES_PATH_INSTALL_PROMPT__ ?? null);
     };
+    target.__ARES_PATH_INSTALL_PROMPT_LISTENERS__?.add(syncInstallPrompt);
+    syncInstallPrompt();
+
+    const displayModeTimer = window.setTimeout(() => setIsInstalled(isStandaloneDisplayMode()), 0);
     const handleInstalled = () => {
-      setInstallPrompt(null);
+      clearInstallPrompt();
       setIsInstalled(true);
     };
     const handleDisplayModeChange = () => setIsInstalled(isStandaloneDisplayMode());
-    const mediaQuery = window.matchMedia("(display-mode: standalone)");
+    const mediaQuery = typeof window.matchMedia === "function"
+      ? window.matchMedia("(display-mode: standalone)")
+      : null;
 
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleInstalled);
-    mediaQuery.addEventListener("change", handleDisplayModeChange);
+    mediaQuery?.addEventListener("change", handleDisplayModeChange);
 
     return () => {
+      target.__ARES_PATH_INSTALL_PROMPT_LISTENERS__?.delete(syncInstallPrompt);
       window.clearTimeout(displayModeTimer);
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleInstalled);
-      mediaQuery.removeEventListener("change", handleDisplayModeChange);
+      mediaQuery?.removeEventListener("change", handleDisplayModeChange);
     };
   }, []);
 
   const install = useCallback(async () => {
     if (!installPrompt) return false;
 
-    await installPrompt.prompt();
-    const choice = await installPrompt.userChoice;
-    setInstallPrompt(null);
-    if (choice.outcome === "accepted") setIsInstalled(true);
-    return choice.outcome === "accepted";
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      clearInstallPrompt();
+      if (choice.outcome === "accepted") setIsInstalled(true);
+      return choice.outcome === "accepted";
+    } catch {
+      clearInstallPrompt();
+      return false;
+    }
   }, [installPrompt]);
 
   const value = useMemo(

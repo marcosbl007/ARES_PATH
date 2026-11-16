@@ -93,6 +93,10 @@ def test_real_dataset_serves_metadata_binary_assets_and_routes() -> None:
 def test_hirise_region_variants_can_serve_routes(region_id: str) -> None:
     client = real_client()
     metadata = client.get(f"/api/data/regions/{region_id}")
+    layers = client.get(f"/api/data/regions/{region_id}/layers")
+    ortho_metadata = client.get(
+        f"/api/data/regions/{region_id}/layers/orthoimage/metadata"
+    )
     mission = client.post(
         "/api/missions/plan",
         json={
@@ -109,6 +113,12 @@ def test_hirise_region_variants_can_serve_routes(region_id: str) -> None:
 
     assert metadata.status_code == 200
     assert metadata.json()["shape"] in ([512, 512], [1024, 1024], [2048, 2048])
+    assert layers.status_code == 200
+    assert {layer["layer_id"] for layer in layers.json()} == {"elevation", "orthoimage", "slope"}
+    assert ortho_metadata.status_code == 200
+    assert ortho_metadata.json()["shape"] == metadata.json()["shape"]
+    assert ortho_metadata.json()["transform"] == metadata.json()["transform"]
+    assert ortho_metadata.json()["crs_wkt"] == metadata.json()["crs_wkt"]
     assert mission.status_code == 200
     assert len(mission.json()["routes"]) == 2
 
@@ -143,6 +153,9 @@ def test_ctx_mosaic_region_serves_aligned_layers_and_routes(region_id: str) -> N
     assert {layer["layer_id"] for layer in layers.json()} == {"elevation", "orthoimage", "slope"}
     assert ortho_metadata.status_code == 200
     assert ortho_metadata.json()["source_ids"] == ["MARS2020_CTX_JEZERO_ORTHO_5M"]
+    assert ortho_metadata.json()["shape"] == metadata.json()["shape"]
+    assert ortho_metadata.json()["transform"] == metadata.json()["transform"]
+    assert ortho_metadata.json()["crs_wkt"] == metadata.json()["crs_wkt"]
     assert mission.status_code == 200
     assert mission.json()["analysis_window"] == {
         "row": 753,
@@ -170,3 +183,18 @@ def test_ctx_mosaic_can_route_on_the_full_selected_region() -> None:
 
     assert response.status_code == 200
     assert len(response.json()["routes"]) == 2
+
+
+def test_ctx_regions_are_distinct_contiguous_quadrants() -> None:
+    client = real_client()
+    metadata = {
+        region_id: client.get(f"/api/data/regions/{region_id}").json()
+        for region_id in CTX_REGION_IDS
+    }
+
+    bounds = {region_id: item["map_bounds"] for region_id, item in metadata.items()}
+    assert len({tuple(values) for values in bounds.values()}) == 4
+    assert bounds["jezero_ctx_northwest_20m"][2] == bounds["jezero_ctx_northeast_20m"][0]
+    assert bounds["jezero_ctx_southwest_20m"][2] == bounds["jezero_ctx_southeast_20m"][0]
+    assert bounds["jezero_ctx_southwest_20m"][3] == bounds["jezero_ctx_northwest_20m"][1]
+    assert bounds["jezero_ctx_southeast_20m"][3] == bounds["jezero_ctx_northeast_20m"][1]

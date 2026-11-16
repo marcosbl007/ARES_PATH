@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { StatusDot } from "@/components/atoms/status-dot";
 import type { NavigationTarget } from "@/components/molecules/navigation-target";
@@ -16,7 +16,13 @@ import { useOfflineMissions } from "@/features/offline-missions/hooks/use-offlin
 import { createMissionPack, prepareMissionPack } from "@/features/offline-missions/services/mission-pack-store";
 import { RouteAnalysisPanel } from "@/features/route-analysis/components/route-analysis-panel";
 import { createDefaultAnalysisWindow, isPointInAnalysisWindow } from "@/features/mars-map/utils/analysis-window";
-import type { AnalysisWindow, GridPoint, MissionRequest, ScientificTarget } from "@/shared/types/api-contract";
+import type {
+  AnalysisWindow,
+  GridPoint,
+  MissionRequest,
+  ScientificTarget,
+  TerrainSampleResponse,
+} from "@/shared/types/api-contract";
 
 const layerColors: Record<string, string> = {
   ctx: "#5bc0eb",
@@ -25,6 +31,8 @@ const layerColors: Record<string, string> = {
   orthoimage: "#a7f3d0",
   slope: "#fdb813",
 };
+
+const DEFAULT_LOCAL_LAYER_IDS: MapLayerId[] = ["elevation", "optical"];
 
 function parsePoint(draft: PointDraft): GridPoint | null {
   if (draft.row.trim() === "" || draft.col.trim() === "") return null;
@@ -35,9 +43,49 @@ function parsePoint(draft: PointDraft): GridPoint | null {
 
   return { row, col };
 }
-function apiErrorMessage(error: { code: string; message: string } | null) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function apiErrorMessage(error: { code: string; message: string; details?: unknown } | null) {
   if (!error) return null;
+
+  const details = isRecord(error.details) ? error.details : {};
+  const suggestion = typeof details.suggestion === "string" ? details.suggestion : null;
+  const affectedPoint = details.point_affected === "destination" ? "de destino" : "de origen";
+
+  if (error.code === "NON_TRAVERSABLE_POINT") {
+    return `El punto ${affectedPoint} no tiene elevación válida o supera el límite de pendiente.${suggestion ? ` ${suggestion}` : ""}`;
+  }
+  if (error.code === "NO_PATH") {
+    return `No existe una ruta continua entre los puntos dentro del área seleccionada.${suggestion ? ` ${suggestion}` : ""}`;
+  }
+
+  if (suggestion) return `${error.message} ${suggestion} [${error.code}]`;
   return `${error.message} [${error.code}]`;
+}
+
+function exampleMissionPoints(window: AnalysisWindow) {
+  const rowStep = Math.max(1, Math.round(window.height * 0.1));
+  const colStep = Math.max(1, Math.round(window.width * 0.1));
+  return {
+    start: { row: window.row + rowStep, col: window.col + colStep },
+    destination: { row: window.row + rowStep * 2, col: window.col + colStep * 2 },
+  };
+}
+
+function terrainPointError(pointLabel: string, sample: TerrainSampleResponse | null) {
+  if (!sample) return `No se pudo validar el punto ${pointLabel} con el backend.`;
+  if (sample.no_data || sample.elevation_m === null) {
+    return `El punto ${pointLabel} no tiene una elevación válida en el DTM.`;
+  }
+  if (sample.slope_exceeds_threshold) {
+    return `El punto ${pointLabel} supera el límite de pendiente configurado.`;
+  }
+  if (sample.traversable === false) {
+    return `El punto ${pointLabel} no es traversable con la configuración actual.`;
+  }
+  return null;
 }
 
 function mapLayerId(layerId: string): MapLayerId | null {
@@ -62,6 +110,15 @@ function transformTuple(transform: number[] | undefined): [number, number, numbe
 }
 
 export default function Home() {
+  // Render the static loading shell first. Browser extensions can mutate the
+  // server HTML (for example by adding `fdprocessedid` to buttons) before
+  // React hydrates it. The interactive workspace is mounted after takeover,
+  // so those external mutations cannot produce a false hydration failure.
+  const clientReady = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [setupOpen, setSetupOpen] = useState(true);
   const [analysisOpen, setAnalysisOpen] = useState(true);
@@ -74,7 +131,7 @@ export default function Home() {
   const [slopeWeight, setSlopeWeight] = useState("2");
   const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
   const [activeTarget, setActiveTarget] = useState<NavigationTarget>("traverse");
-  const [activeLayerIds, setActiveLayerIds] = useState<MapLayerId[]>(["elevation", "optical", "ctx", "hirise"]);
+  const [activeLayerIds, setActiveLayerIds] = useState<MapLayerId[]>(DEFAULT_LOCAL_LAYER_IDS);
   const [layerOpacity, setLayerOpacity] = useState<Partial<Record<MapLayerId, number>>>({
     ctx: 1,
     hirise: 1,
@@ -83,6 +140,7 @@ export default function Home() {
     slope: 0.55,
   });
   const [focusPoint, setFocusPoint] = useState<GridPoint | null>(null);
+  const [pointValidationMessage, setPointValidationMessage] = useState<string | null>(null);
   const planning = useMissionPlanning();
   const offline = useOfflineMissions();
   const pwa = usePwaInstall();
@@ -100,6 +158,33 @@ export default function Home() {
     [activeMetadata, analysisWindow, selectedOfflinePack],
   );
   const [lastMissionRequest, setLastMissionRequest] = useState<MissionRequest | null>(null);
+  const seededPointKeyRef = useRef("");
+
+  useEffect(() => {
+    if (
+      !activeMetadata
+      || activeMetadata.region_id !== activeRegionId
+      || !activeAnalysisWindow
+      || selectedOfflinePack
+    ) return;
+
+    const key = [
+      activeMetadata.region_id,
+      activeMetadata.processed_sha256,
+      activeAnalysisWindow.row,
+      activeAnalysisWindow.col,
+      activeAnalysisWindow.height,
+      activeAnalysisWindow.width,
+    ].join(":");
+    if (seededPointKeyRef.current === key) return;
+    seededPointKeyRef.current = key;
+
+    const points = exampleMissionPoints(activeAnalysisWindow);
+    setAnalysisWindow((current) => current ?? activeAnalysisWindow);
+    setStartDraft({ row: String(points.start.row), col: String(points.start.col) });
+    setDestinationDraft({ row: String(points.destination.row), col: String(points.destination.col) });
+    setPointValidationMessage(null);
+  }, [activeAnalysisWindow, activeMetadata, activeRegionId, selectedOfflinePack]);
 
   useEffect(() => {
     const loadingTimer = window.setTimeout(() => setIsLoading(false), 2500);
@@ -137,6 +222,7 @@ export default function Home() {
     const weight = Number(slopeWeight);
     if (!Number.isFinite(slope) || slope <= 0 || slope > 90) return "Max slope must be between 0 and 90 degrees.";
     if (!Number.isFinite(weight) || weight < 0) return "Slope weight must be zero or greater.";
+    if (pointValidationMessage) return pointValidationMessage;
 
     return null;
   }, [
@@ -146,6 +232,7 @@ export default function Home() {
     activeRegionId,
     planning.regionStatus,
     planning.workspaceStatus,
+    pointValidationMessage,
     slopeWeight,
     startPoint,
     activeAnalysisWindow,
@@ -234,6 +321,7 @@ export default function Home() {
   const handlePointChange = (point: "start" | "destination", axis: keyof PointDraft, value: string) => {
     const setter = point === "start" ? setStartDraft : setDestinationDraft;
     setter((current) => ({ ...current, [axis]: value }));
+    setPointValidationMessage(null);
   };
 
   const handleNavigate = (target: NavigationTarget) => {
@@ -261,6 +349,7 @@ export default function Home() {
     const draft = { row: String(point.row), col: String(point.col) };
     if (mode === "origin") setStartDraft(draft);
     else setDestinationDraft(draft);
+    setPointValidationMessage(null);
     if (!offline.selectedPackId) {
       void planning.inspectTerrainPoint(point, {
         max_slope_deg: Number(maxSlopeDeg),
@@ -272,6 +361,7 @@ export default function Home() {
   const handleClearPoints = () => {
     setStartDraft({ row: "", col: "" });
     setDestinationDraft({ row: "", col: "" });
+    setPointValidationMessage(null);
     setLastMissionRequest(null);
     offline.select(null);
     planning.clearMission();
@@ -281,17 +371,20 @@ export default function Home() {
   const handleRegionChange = (regionId: string) => {
     offline.select(null);
     planning.selectRegion(regionId);
+    seededPointKeyRef.current = "";
     setAnalysisWindow(null);
     setAreaSelectionActive(false);
     setStartDraft({ row: "", col: "" });
     setDestinationDraft({ row: "", col: "" });
     setSelectionMode("origin");
     setSelectedTargetIds([]);
-    setActiveLayerIds(["elevation", "optical", "ctx", "hirise"]);
+    setActiveLayerIds(DEFAULT_LOCAL_LAYER_IDS);
+    setPointValidationMessage(null);
     setFocusPoint(null);
   };
 
   const handleAnalysisWindowChange = (nextWindow: AnalysisWindow) => {
+    seededPointKeyRef.current = "";
     setAnalysisWindow(nextWindow);
     handleClearPoints();
   };
@@ -332,8 +425,36 @@ export default function Home() {
     setLayerOpacity((current) => ({ ...current, [layerId]: opacity }));
   };
 
-  const handlePlan = () => {
+  const handlePlan = async () => {
     if (!startPoint || !destinationPoint || !planning.selectedRegionId || !activeAnalysisWindow) return;
+
+    const terrainConfig = {
+      max_slope_deg: Number(maxSlopeDeg),
+      slope_weight: Number(slopeWeight),
+    };
+    setPointValidationMessage(null);
+
+    const startSample = await planning.inspectTerrainPoint(
+      startPoint,
+      terrainConfig,
+      activeAnalysisWindow,
+    );
+    const startError = terrainPointError("de origen", startSample);
+    if (startError) {
+      setPointValidationMessage(startError);
+      return;
+    }
+
+    const destinationSample = await planning.inspectTerrainPoint(
+      destinationPoint,
+      terrainConfig,
+      activeAnalysisWindow,
+    );
+    const destinationError = terrainPointError("de destino", destinationSample);
+    if (destinationError) {
+      setPointValidationMessage(destinationError);
+      return;
+    }
 
     const request: MissionRequest = {
       region_id: planning.selectedRegionId,
@@ -341,10 +462,7 @@ export default function Home() {
       start: startPoint,
       destination: destinationPoint,
       mode: "compare",
-      terrain_config: {
-        max_slope_deg: Number(maxSlopeDeg),
-        slope_weight: Number(slopeWeight),
-      },
+      terrain_config: terrainConfig,
       scientific_target_ids: selectedTargetIds,
       analysis_window: activeAnalysisWindow,
     };
@@ -403,13 +521,14 @@ export default function Home() {
 
   const handleLiveWorkspace = () => {
     offline.select(null);
+    seededPointKeyRef.current = "";
     setLastMissionRequest(null);
     setAnalysisWindow(null);
     setAreaSelectionActive(false);
     setStartDraft({ row: "", col: "" });
     setDestinationDraft({ row: "", col: "" });
     setFocusPoint(null);
-    setActiveLayerIds(["elevation", "optical", "ctx", "hirise"]);
+    setActiveLayerIds(DEFAULT_LOCAL_LAYER_IDS);
     setActiveTarget("traverse");
   };
 
@@ -475,6 +594,14 @@ export default function Home() {
       : "API / CONNECTING";
   const dataSources = displayMission?.data_sources.join(", ") || activeMetadata?.source_ids.join(", ") || "PENDING";
   const errorMessage = apiErrorMessage(planning.error);
+
+  if (!clientReady) {
+    return (
+      <div className="ares-shell" suppressHydrationWarning>
+        <BrandLoadingScreen visible />
+      </div>
+    );
+  }
 
   return (
     <div className="ares-shell" suppressHydrationWarning>

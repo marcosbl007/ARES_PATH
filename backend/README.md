@@ -66,7 +66,11 @@ not EPSG:3857 and is separate from the global Mars Trek WMTS matrix.
 
 The Mars Trek endpoint returns the two verified Jezero visual WMTS descriptors
 (CTX and HiRISE), including capabilities URLs and the explicit warning that
-their CRS/alignment must be validated before overlaying the local DTM.
+their CRS/alignment must be validated before overlaying the local DTM. They are
+disabled by default in the frontend; the local elevation and orthoimage layers
+are the authoritative map reference. A `NO_PATH` response includes the
+affected endpoints, reason and suggestion; a blocked endpoint is reported as
+`NON_TRAVERSABLE_POINT` before A* starts.
 
 Example raster requests from `backend/`:
 

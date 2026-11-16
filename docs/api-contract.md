@@ -90,11 +90,17 @@ Expected errors use one shape:
 ```json
 {
   "code": "NO_PATH",
-  "message": "No traversable route exists for the requested points and mode.",
-  "details": {}
+  "message": "No continuous traversable route exists for the requested points and mode.",
+  "details": {
+    "point_affected": null,
+    "reason": "No traversable path exists.",
+    "suggestion": "Choose points closer together or expand the analysis window."
+  }
 }
 ```
 
 Typical statuses are 400/422 for invalid inputs, 404 for missing regions or
-targets, 409 for inconsistent data, 422 for `NO_PATH`, and 503 when a required
-local DTM is unavailable. Internal traces are not returned to clients.
+targets, 409 for inconsistent data, 422 for `NON_TRAVERSABLE_POINT` or
+`NO_PATH`, and 503 when a required local DTM is unavailable. Endpoint errors
+include the affected point, the terrain reason and a user-facing suggestion;
+internal traces are not returned to clients.

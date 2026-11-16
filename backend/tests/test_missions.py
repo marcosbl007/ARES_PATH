@@ -267,3 +267,34 @@ def test_inaccessible_destination_returns_no_path() -> None:
 
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "NO_PATH"
+
+
+def test_non_traversable_endpoint_returns_a_structured_point_error() -> None:
+    elevation = np.full((5, 5), 100.0, dtype=np.float64)
+    elevation[1, 1] = np.nan
+    blocked_region = RegionData(
+        region_id="synthetic",
+        elevation_m=elevation,
+        valid_mask=np.isfinite(elevation),
+        transform=Affine(1, 0, 0, 0, -1, 0),
+        crs_wkt="MARS_SYNTHETIC_METRIC",
+        pixel_size_x_m=1.0,
+        pixel_size_y_m=1.0,
+        source_ids=("synthetic-elevation",),
+    )
+
+    response = app_client(blocked_region).post(
+        "/api/missions/plan",
+        json=mission_payload(
+            start={"row": 1, "col": 1},
+            destination={"row": 4, "col": 4},
+            scientific_target_ids=[],
+        ),
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "NON_TRAVERSABLE_POINT"
+    assert detail["details"]["point_affected"] == "start"
+    assert detail["details"]["reason"] == "no_data"
+    assert detail["details"]["suggestion"]

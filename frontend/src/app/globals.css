@@ -1788,7 +1788,7 @@ input:focus-visible {
   }
 
   .route-analysis {
-    width: 298px;
+    width: min(326px, calc(100% - 55px));
   }
 }
 
@@ -2473,6 +2473,70 @@ input:focus-visible {
 
 .offline-pack-actions .secondary-action {
   margin-top: 0;
+}
+
+/* Keep the telemetry rail usable when an offline pack contains long source
+   identifiers, large profiles, or a detailed mission briefing. The rail is
+   an overlay, so its own content must scroll without widening the map. */
+.route-analysis {
+  min-width: 0;
+}
+
+.route-analysis .panel-content {
+  min-width: 0;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.route-analysis .panel-content > *,
+.route-analysis .panel-content section,
+.route-analysis .panel-content article,
+.route-analysis .panel-content p,
+.route-analysis .panel-content ul {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.route-analysis .comparison-card__heading,
+.route-analysis .route-card__header,
+.route-analysis .profile-data__summary {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.route-analysis .comparison-card__heading > span:first-child,
+.route-analysis .route-card__title,
+.route-analysis .source-card p,
+.route-analysis .offline-pack-card .field-note,
+.route-analysis .offline-pack-item__select strong,
+.route-analysis .offline-pack-item__select small,
+.route-analysis .mission-briefing * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.route-analysis .metric-table,
+.route-analysis .profile-bars {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.route-analysis .metric-table__row span,
+.route-analysis .offline-pack-item,
+.route-analysis .offline-pack-item__select {
+  min-width: 0;
+}
+
+.route-analysis .briefing-route > div:first-child,
+.route-analysis .briefing-actions {
+  flex-wrap: wrap;
+}
+
+.route-analysis .offline-pack-card {
+  overflow: hidden;
 }
 
 .secondary-action {

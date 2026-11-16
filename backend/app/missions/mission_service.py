@@ -6,6 +6,7 @@ processing or A* itself, which keeps the domain boundaries testable.
 
 from __future__ import annotations
 
+from math import isfinite
 from pathlib import Path
 from typing import Protocol
 
@@ -143,7 +144,65 @@ class MissionService:
                     },
                 )
 
-    def _calculate_routes(self, request: MissionRequest, region, terrain) -> tuple[tuple[RouteResult, ...], RouteComparison | None]:
+    def _validate_route_endpoints(
+        self,
+        region,
+        terrain,
+        request: MissionRequest,
+        *,
+        coordinate_offset: tuple[int, int] = (0, 0),
+    ) -> None:
+        """Reject NoData or slope-blocked endpoints before running A*."""
+
+        offset_row, offset_col = coordinate_offset
+        for name, point in (
+            ("start", request.start.as_tuple()),
+            ("destination", request.destination.as_tuple()),
+        ):
+            row, col = point
+            valid_elevation = bool(region.valid_mask[row, col])
+            slope_value = float(terrain.slope_deg[row, col])
+            slope_available = isfinite(slope_value)
+            traversable = bool(terrain.traversable[row, col])
+            if valid_elevation and slope_available and traversable:
+                continue
+
+            if not valid_elevation:
+                reason = "no_data"
+                suggestion = "Choose another cell with valid elevation inside the selected analysis area."
+            elif not slope_available:
+                reason = "slope_unavailable"
+                suggestion = "Choose another cell with a computable terrain neighbourhood."
+            else:
+                reason = "slope_exceeds_threshold"
+                suggestion = (
+                    "Choose a flatter cell or increase max_slope_deg if that is scientifically justified."
+                )
+
+            raise MissionServiceError(
+                "NON_TRAVERSABLE_POINT",
+                f"The {name} point is not traversable with the current terrain configuration.",
+                status_code=422,
+                details={
+                    "point_affected": name,
+                    "point": {"row": row + offset_row, "col": col + offset_col},
+                    "local_point": {"row": row, "col": col},
+                    "reason": reason,
+                    "elevation_valid": valid_elevation,
+                    "slope_deg": slope_value if slope_available else None,
+                    "max_slope_deg": terrain.config.get("max_slope_deg"),
+                    "suggestion": suggestion,
+                },
+            )
+
+    def _calculate_routes(
+        self,
+        request: MissionRequest,
+        region,
+        terrain,
+        *,
+        coordinate_offset: tuple[int, int] = (0, 0),
+    ) -> tuple[tuple[RouteResult, ...], RouteComparison | None]:
         start = request.start.as_tuple()
         destination = request.destination.as_tuple()
         try:
@@ -159,15 +218,33 @@ class MissionService:
             )
             return (route,), None
         except NoPathError as exc:
+            offset_row, offset_col = coordinate_offset
+            reason = exc.reason
+            reason_lower = reason.lower()
+            point_affected = (
+                "start" if "start cell" in reason_lower
+                else "destination" if "goal cell" in reason_lower
+                else None
+            )
+            suggestion = (
+                "Choose points closer together, move the analysis window, or increase max_slope_deg if scientifically justified."
+            )
+            if point_affected == "start":
+                suggestion = "Choose another origin cell with valid elevation and an acceptable slope."
+            elif point_affected == "destination":
+                suggestion = "Choose another destination cell with valid elevation and an acceptable slope."
+
             raise MissionServiceError(
                 exc.code,
-                "No traversable route exists for the requested points and mode.",
+                "No continuous traversable route exists for the requested points and mode.",
                 status_code=422,
                 details={
-                    "start": {"row": exc.start[0], "col": exc.start[1]},
-                    "goal": {"row": exc.goal[0], "col": exc.goal[1]},
+                    "point_affected": point_affected,
+                    "start": {"row": exc.start[0] + offset_row, "col": exc.start[1] + offset_col},
+                    "goal": {"row": exc.goal[0] + offset_row, "col": exc.goal[1] + offset_col},
                     "mode": exc.mode,
-                    "reason": exc.reason,
+                    "reason": reason,
+                    "suggestion": suggestion,
                 },
             ) from exc
         except SearchLimitExceeded as exc:
@@ -243,6 +320,12 @@ class MissionService:
         )
 
         terrain = self.terrain_for(region, local_request.terrain_config.as_dict())
+        self._validate_route_endpoints(
+            region,
+            terrain,
+            local_request,
+            coordinate_offset=(analysis_window.row, analysis_window.col),
+        )
         targets = self._requested_targets(request)
         self._validate_target_destination(request, targets)
         for target in targets:
@@ -257,7 +340,12 @@ class MissionService:
                     },
                 )
 
-        routes, comparison = self._calculate_routes(local_request, region, terrain)
+        routes, comparison = self._calculate_routes(
+            local_request,
+            region,
+            terrain,
+            coordinate_offset=(analysis_window.row, analysis_window.col),
+        )
 
         limitations = [
             "Research prototype; not operational EVA navigation or safety guidance.",

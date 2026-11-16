@@ -40,6 +40,7 @@ import {
   localLonLatToGridPosition,
   localRasterExtentInLonLat,
   parseMarsEquirectangularWkt,
+  rasterExtentInLonLat,
 } from "@/features/mars-map/utils/mars-coordinates";
 import type { AnalysisWindow, GridPoint, MissionResponse, RegionMetadata } from "@/shared/types/api-contract";
 import { isPointInAnalysisWindow, normalizeAnalysisWindow } from "@/features/mars-map/utils/analysis-window";
@@ -199,7 +200,16 @@ function createLocalImageLayer(
 ): ImageLayer<ImageStatic> | null {
   if (!layer.localPreviewUrl || !metadata || !definition) return null;
 
-  const imageExtent = localRasterExtentInLonLat(metadata, definition);
+  const imageShape = (layer.localShape ?? metadata.shape) as [number, number];
+  const imageTransform = (layer.localTransform ?? metadata.transform) as [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
+  const imageExtent = rasterExtentInLonLat(imageShape, imageTransform, definition);
   const source = new ImageStatic({
     url: resolveApiResourceUrl(layer.localPreviewUrl),
     imageExtent,
@@ -214,6 +224,7 @@ function createLocalImageLayer(
     source,
     visible: layer.active,
     opacity: layer.opacity ?? (layer.id === "elevation" ? 0.5 : layer.id === "slope" ? 0.55 : 0.88),
+    extent: imageExtent,
     zIndex: layer.id === "elevation" ? 21 : 20,
   });
 }

@@ -126,6 +126,7 @@ class RegionRepository:
                 if (list(src.shape) != metadata['shape'] or list(src.transform)[:6] != metadata['transform']
                         or src.crs.to_wkt() != metadata['crs_wkt']):
                     raise ValueError("Ortho grid mismatch")
+            ortho_source = ortho.get("source", {})
             layers.append({
                 "layer_id": "orthoimage",
                 "units": "DN",
@@ -133,10 +134,10 @@ class RegionRepository:
                 "source_ids": ortho['source_ids'],
                 "used_for_routing": False,
                 "routing_role": "display_only",
-                "name": "HiRISE RED orthoimage",
+                "name": str(ortho_source.get("title", "Aligned local orthoimage")),
                 "data_type": "optical_imagery",
-                "mission": ortho.get("source", {}).get("mission"),
-                "instrument": ortho.get("source", {}).get("instrument"),
+                "mission": ortho_source.get("mission"),
+                "instrument": ortho_source.get("instrument"),
                 "spatial_resolution_m": float(metadata["pixel_size_x_m"]),
                 "coverage_status": "grid_registered_local_subset",
                 "coverage_description": "Display raster registered to the local DTM grid.",

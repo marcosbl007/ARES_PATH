@@ -97,12 +97,12 @@ function metadataTransform(metadata: RegionMetadata): AffineTransform {
   return metadata.transform as AffineTransform;
 }
 
-export function localRasterExtentInLonLat(
-  metadata: RegionMetadata,
+export function rasterExtentInLonLat(
+  shape: [number, number],
+  transform: AffineTransform,
   definition: MarsEquirectangularDefinition,
 ): GeoExtent {
-  const [height, width] = metadata.shape;
-  const transform = metadataTransform(metadata);
+  const [height, width] = shape;
   const corners = [
     affinePoint(transform, 0, 0),
     affinePoint(transform, width, 0),
@@ -118,6 +118,13 @@ export function localRasterExtentInLonLat(
     Math.max(...longitudes),
     Math.max(...latitudes),
   ];
+}
+
+export function localRasterExtentInLonLat(
+  metadata: RegionMetadata,
+  definition: MarsEquirectangularDefinition,
+): GeoExtent {
+  return rasterExtentInLonLat(metadata.shape, metadataTransform(metadata), definition);
 }
 
 export function localGridWindowToLonLatExtent(
