@@ -759,7 +759,7 @@ El proyecto de Vercel se administra en https://vercel.com/marcosbl007s-projects/
 ### Configuración efectiva
 
 - Vercel: framework Next.js; `pnpm install --frozen-lockfile`; `pnpm build`; `NEXT_PUBLIC_API_URL=https://ares-path-api.onrender.com` en Production y Preview.
-- Render: Dockerfile `backend/Dockerfile`; health check `/api/health`; `ARES_DATA_ROOT=/app/data`; `ARES_CORS_ORIGINS=https://ares-path-plum.vercel.app`; `ARES_MAX_ANALYSIS_WINDOW_CELLS=262144` definido en la imagen. El contenedor usa el `PORT` asignado por Render y lleva `data/processed` dentro de la imagen.
+- Render: Dockerfile `backend/Dockerfile`; health check `/api/health`; `ARES_DATA_ROOT=/app/data`; `ARES_CORS_ORIGINS=https://ares-path-plum.vercel.app`; `ARES_MAX_ANALYSIS_WINDOW_CELLS=1048576` definido en la imagen y en el entorno del servicio. El contenedor usa el `PORT` asignado por Render y lleva `data/processed` dentro de la imagen.
 - El primer despliegue de Vercel intentó usar `main` y falló porque esa rama no tenía la configuración del frontend. Se corrigió la raíz y el seguimiento de `feature/devops`; el despliegue de producción actual quedó en estado Ready. Ese intento fallido permanece en el historial, pero no atiende el dominio público.
 - El commit `a724518` corrigió el zoom de ajuste del mapa para que el raster local de Jezero se vea en producción. Vercel publicó ese commit automáticamente.
 
@@ -775,17 +775,17 @@ El proyecto de Vercel se administra en https://vercel.com/marcosbl007s-projects/
 
 El 2026-11-15, una consulta de terreno con `jezero_fan_2048` y un área de 1024 × 1024 celdas mostró `NETWORK_ERROR` y dejó el botón Plan mission bloqueado. Los eventos de Render confirmaron que la instancia superó 512 MB y se reinició. La consulta de un solo punto calculaba matrices de pendiente y costo para toda el área, y además repetía el cálculo de pendiente.
 
-El commit `05861a1` cambió la consulta para analizar únicamente el vecindario de hasta 3 × 3 celdas alrededor del punto. El frontend ahora inicia con un área máxima de 512 × 512 celdas y limita el redimensionamiento a ese tamaño. El backend protege también las llamadas directas: áreas mayores que 262144 celdas reciben HTTP 422 con `INVALID_ANALYSIS_WINDOW`. Un error temporal de red ya no deja Plan mission bloqueado; se puede reintentar.
+El commit `05861a1` cambió la consulta para analizar únicamente el vecindario de hasta 3 × 3 celdas alrededor del punto. Se probó inicialmente un límite de 512 × 512. El commit `f83207d` conserva el área de hasta 1024 × 1024 celdas para rutas más largas, impide envíos duplicados desde la interfaz y rechaza otra misión pesada simultánea con `MISSION_BUSY` para proteger la memoria. El backend devuelve HTTP 422 con `INVALID_ANALYSIS_WINDOW` si una llamada directa supera 1048576 celdas. Un error temporal de red permite reintentar Plan mission sin editar los puntos.
 
-Se probó la imagen Docker con límite real de 512 MB: consulta de punto HTTP 200 y misión `compare` con dos rutas HTTP 200 sobre `jezero_fan_2048` en un área de 512 × 512. Después, Vercel publicó automáticamente `05861a1` y Render se actualizó con **Manual Deploy → Deploy latest commit**. En producción se repitió la consulta y el cálculo de la misión con origen R819 C819 y destino R870 C870, dentro de R768 C768, y se obtuvieron ambas rutas, perfil e informe sin reinicios. Un área de 1024 × 1024 devolvió el error estructurado HTTP 422. Evidencia: [misión corregida en producción](deployment-memory-fix.jpg).
+Se probó la imagen Docker con límite real de 512 MB: consulta de punto y misión `compare` con dos rutas sobre `jezero_fan_2048` en áreas de 512 × 512 y 1024 × 1024. En la prueba amplia, el proceso llegó a aproximadamente 291 MB de memoria residente máxima. Render se actualizó con **Manual Deploy → Deploy latest commit**. En producción, la misión original con origen R568 C751 y destino R1460 C1449 dentro de R512 C512, 1024 × 1024, respondió HTTP 200 con ambas rutas en unos 85 segundos. También se repitió desde la interfaz de Vercel: los dos puntos se validaron, el botón mostró `REQUESTING` durante el cálculo y la pantalla terminó en `READY` con rutas `shortest` y `terrain_aware`, perfil de elevación y respuesta guardada. Para la demo, mostrar el estado de cálculo y considerar una ruta más corta si se necesita una respuesta inmediata. Evidencias: [misión original de 1024 × 1024 en producción](deployment-1024-mission.jpg) y [misión de 512 × 512](deployment-memory-fix.jpg).
 
-Para rutas más largas, mueve el área de análisis y elige ambos puntos dentro de sus 512 × 512 celdas. Si se necesita mayor distancia física, selecciona una región CTX de 20 m por celda. Ampliar el límite de HiRISE requiere más memoria o una optimización adicional del buscador de rutas.
+Para rutas más largas, mueve el área de análisis y elige ambos puntos dentro de sus 1024 × 1024 celdas. Si se necesita mayor distancia física, selecciona una región CTX de 20 m por celda. Evita lanzar varias misiones largas al mismo tiempo en la instancia gratuita.
 
 ### Pendiente de comprobar antes de la presentación
 
 - Abrir la URL desde una sesión limpia y medir la primera respuesta después de inactividad del servicio gratuito de Render.
 - Probar explícitamente exportación e importación del JSON, desconexión real de la red y el prompt nativo de instalación de la PWA. La interfaz mostró `INSTALLABLE`, pero no se instaló la aplicación.
-- Render no desplegó automáticamente el commit `05861a1`; para futuros cambios en `backend/`, abrir Deploys y elegir **Manual Deploy → Deploy latest commit**, y comprobar `/api/health` y una misión.
+- Render no desplegó automáticamente los commits del backend; para futuros cambios en `backend/`, abrir Deploys y elegir **Manual Deploy → Deploy latest commit**, y comprobar `/api/health` y una misión.
 - La producción está siguiendo `feature/devops`. Si el equipo fusiona esta rama en `develop` y decide operar desde `develop`, cambiar también la rama de producción en ambos proveedores antes de borrar `feature/devops`.
 
 ## Referencias oficiales
