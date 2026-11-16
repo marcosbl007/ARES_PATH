@@ -1,7 +1,7 @@
 import type { AnalysisWindow, GridPoint, RegionMetadata } from "@/shared/types/api-contract";
 
 export const MIN_ANALYSIS_WINDOW_CELLS = 32;
-export const MAX_ANALYSIS_WINDOW_CELLS = 512;
+export const MAX_ANALYSIS_WINDOW_CELLS = 1024;
 
 export function createCenteredAnalysisWindow(
   metadata: RegionMetadata,

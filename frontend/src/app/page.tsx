@@ -63,6 +63,9 @@ function apiErrorMessage(error: { code: string; message: string; details?: unkno
   if (error.code === "NETWORK_ERROR") {
     return "No se pudo contactar al servidor. Intenta planear la misión de nuevo en unos segundos.";
   }
+  if (error.code === "MISSION_BUSY") {
+    return "El servidor está calculando otra misión. Inténtalo de nuevo en unos momentos.";
+  }
 
   if (suggestion) return `${error.message} ${suggestion} [${error.code}]`;
   return `${error.message} [${error.code}]`;
@@ -143,6 +146,8 @@ export default function Home() {
   });
   const [focusPoint, setFocusPoint] = useState<GridPoint | null>(null);
   const [pointValidationMessage, setPointValidationMessage] = useState<string | null>(null);
+  const [planSubmissionPending, setPlanSubmissionPending] = useState(false);
+  const planSubmissionRef = useRef(false);
   const planning = useMissionPlanning();
   const offline = useOfflineMissions();
   const pwa = usePwaInstall();
@@ -427,7 +432,7 @@ export default function Home() {
     setLayerOpacity((current) => ({ ...current, [layerId]: opacity }));
   };
 
-  const handlePlan = async () => {
+  const planWithValidatedPoints = async () => {
     if (!startPoint || !destinationPoint || !planning.selectedRegionId || !activeAnalysisWindow) return;
 
     const terrainConfig = {
@@ -472,7 +477,19 @@ export default function Home() {
     };
     offline.select(null);
     setLastMissionRequest(request);
-    void planning.planMission(request);
+    await planning.planMission(request);
+  };
+
+  const handlePlan = async () => {
+    if (planSubmissionRef.current) return;
+    planSubmissionRef.current = true;
+    setPlanSubmissionPending(true);
+    try {
+      await planWithValidatedPoints();
+    } finally {
+      planSubmissionRef.current = false;
+      setPlanSubmissionPending(false);
+    }
   };
 
   const handleSaveOfflinePack = () => {
@@ -659,7 +676,7 @@ export default function Home() {
           slopeWeight={slopeWeight}
           onMaxSlopeChange={setMaxSlopeDeg}
           onSlopeWeightChange={setSlopeWeight}
-          planStatus={planning.planStatus}
+          planStatus={planSubmissionPending ? "loading" : planning.planStatus}
           canPlan={validationMessage === null && !selectedOfflinePack}
           validationMessage={validationMessage}
           errorMessage={errorMessage}

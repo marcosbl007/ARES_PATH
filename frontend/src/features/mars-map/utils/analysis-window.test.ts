@@ -33,12 +33,12 @@ describe("regional analysis window", () => {
     const largeRegion = { ...metadata, shape: [2048, 2048] } as RegionMetadata;
 
     expect(createDefaultAnalysisWindow(largeRegion)).toEqual({
-      row: 768, col: 768, height: 512, width: 512,
+      row: 512, col: 512, height: 1024, width: 1024,
     });
     expect(normalizeAnalysisWindow({
-      row: 0, col: 0, height: 1024, width: 1024,
+      row: 0, col: 0, height: 2048, width: 2048,
     }, largeRegion)).toEqual({
-      row: 0, col: 0, height: 512, width: 512,
+      row: 0, col: 0, height: 1024, width: 1024,
     });
   });
 });

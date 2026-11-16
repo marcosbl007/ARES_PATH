@@ -351,6 +351,9 @@ export function MissionSetupPanel({
             {planStatus === "loading" ? "REQUESTING" : canPlan ? "READY" : "DATA REQUIRED"}
           </span>
         </button>
+        {planStatus === "loading" ? (
+          <p className="field-note" role="status">Large analysis areas can take over a minute on the free backend.</p>
+        ) : null}
       </div>
     </CollapsiblePanel>
   );

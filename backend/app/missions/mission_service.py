@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from math import isfinite
 from pathlib import Path
+from threading import Lock
 from typing import Protocol
 
 from app.nasa_data.repository import RegionRepository
@@ -63,6 +64,7 @@ class MissionService:
         self.catalog = catalog or ScientificTargetCatalog()
         self.route_planner = route_planner or RoutePlanner()
         self.methodology_version = methodology_version
+        self._planning_lock = Lock()
 
     def load_region(self, region_id: str):
         try:
@@ -266,6 +268,19 @@ class MissionService:
             ) from exc
 
     def create_mission_plan(self, request: MissionRequest) -> MissionResponse:
+        if not self._planning_lock.acquire(blocking=False):
+            raise MissionServiceError(
+                "MISSION_BUSY",
+                "Another mission is being calculated. Try again shortly.",
+                status_code=503,
+                details={"suggestion": "Wait for the current route calculation to finish."},
+            )
+        try:
+            return self._create_mission_plan(request)
+        finally:
+            self._planning_lock.release()
+
+    def _create_mission_plan(self, request: MissionRequest) -> MissionResponse:
         parent_region = self.load_region(request.region_id)
         try:
             analysis_window = resolve_analysis_window(parent_region, request.analysis_window)

@@ -9,8 +9,10 @@ import numpy as np
 from affine import Affine
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import pytest
 
-from app.missions.mission_service import MissionService
+from app.missions.mission_service import MissionService, MissionServiceError
+from app.missions.schemas import MissionRequest
 from app.missions.scientific_targets import ScientificTarget, ScientificTargetCatalog
 from app.nasa_data.schemas import RegionData
 from app.api.router import create_api_router
@@ -214,6 +216,19 @@ def test_deployment_analysis_area_limit_returns_a_structured_error(monkeypatch) 
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "INVALID_ANALYSIS_WINDOW"
     assert "64 cells" in response.json()["detail"]["message"]
+
+
+def test_parallel_mission_is_rejected_before_allocating_another_route() -> None:
+    service = MissionService(MemoryRepository(synthetic_region()))
+    request = MissionRequest.model_validate(mission_payload(scientific_target_ids=[]))
+    assert service._planning_lock.acquire(blocking=False)
+    try:
+        with pytest.raises(MissionServiceError) as captured:
+            service.create_mission_plan(request)
+        assert captured.value.code == "MISSION_BUSY"
+        assert captured.value.status_code == 503
+    finally:
+        service._planning_lock.release()
 
 
 def test_scientific_targets_endpoint_rejects_unknown_region() -> None:
