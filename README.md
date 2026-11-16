@@ -4,6 +4,7 @@
   </p>
 
   <p><strong>Explainable terrain-aware route planning for future Marswalks</strong></p>
+  <p><a href="https://ares-path-plum.vercel.app/">Live Demo</a></p>
   <p>NASA Space Apps Challenge 2026 · Interplanetary Survival Guide: Martian Map</p>
 
   <p>
